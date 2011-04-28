@@ -1,0 +1,17 @@
+<?php
+
+function event_gallery_install() {
+// Use schema API to create database table.
+drupal_install_schema('event_gallery');
+}
+/**
+* Implementation of hook_uninstall().
+*/
+function event_gallery_uninstall() {
+// Use schema API to delete database table.
+drupal_uninstall_schema('event_gallery');
+// Delete our module's variable from the variables table.
+
+}
+
+function even_gallery_update_3001(){}

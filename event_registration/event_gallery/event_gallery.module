@@ -1,0 +1,202 @@
+<?php
+/**
+ * Indicates the vocabulary to which photo gallery tags are added.
+ */
+
+
+
+
+define('TAGS', 9);
+
+global $eg_term_added;
+$eg_term_added = FALSE;
+
+
+
+/**
+* Implementation of hook_menu().
+*/
+function event_gallery_menu() { }
+
+
+/*
+ * Implementation of hook_help().
+ */
+function event_gallery_help($path, $args) {}
+
+
+
+/**
+ * Implementation of hook_nodeapi().
+ */
+function event_gallery_nodeapi(&$node, $op, $a3 = NULL, $a4 = NULL) {}
+
+
+
+function get_gallery_name(){
+
+    $space = ' ';
+     $event = variable_get('registration_event', 'PTA Event Photo Gallery');
+     $year = variable_get("registration_year", date('Y'));
+
+     $gallery_name = $event . $space . $year;
+
+   return $gallery_name;
+}
+
+
+function get_machine_name(){
+
+    $event = variable_get('registration_event', 'PTA Event Photo Gallery');
+
+    $search = ' ';
+    $replace = '_';
+    $subject = $event;
+
+    $event = str_replace($search, $replace, $subject);
+
+    //str_replace  ( mixed $search  , mixed $replace  , mixed $subject  [, int &$count  ] )
+
+    $year = variable_get("registration_year", date('Y'));
+
+    $machine_name = $event . $replace . $year;
+    return $machine_name;
+}
+
+
+
+function get_gallery_path(){
+
+        $event = variable_get('registration_event', 'PTA Event Photo Gallery');
+
+    $search = ' ';
+    $replace = '-';
+    $subject = $event;
+
+    $event = str_replace($search, $replace, $subject);
+
+    //str_replace  ( mixed $search  , mixed $replace  , mixed $subject  [, int &$count  ] )
+
+    $year = variable_get("registration_year", date('Y'));
+
+
+    //'photos/gallery/Halloween-Social/2010
+
+    return "photos/gallery/" . $event . "/" . $year;
+}
+
+
+function get_term_id($gallery_name){
+
+    $term = taxonomy_get_term_by_name($gallery_name);
+
+    return $term[0]->tid;
+}
+
+
+function add_term_for_gallery($gallery_name){
+
+      $term = array(
+          'name' => $gallery_name,
+          'vid'  => TAGS,
+      );
+
+      taxonomy_save_term($term);
+  }
+
+
+/**
+ *  Implements hook_views_api().
+ */
+function event_gallery_views_api() {
+  return array(
+    'api' => '3.0-alpha1',
+  );
+}
+
+
+function event_gallery_init(){
+
+    //require_once('./'. drupal_get_path('module', 'event_gallery') .'/includes/event_gallery.inc');
+    /**
+     * 
+     * Gallery name is set by the event administrator
+     * The gallery name includes the year.
+     * 
+     */
+    $gallery_name = get_gallery_name();
+
+    
+    /**
+     *
+     * Gallery name is added to the Tags vocabulary
+     *
+     */
+
+    $term = taxonomy_get_term_by_name($event);
+    if(empty($term)){
+        add_term_for_gallery($gallery_name);
+    }
+
+
+
+    /**
+     *
+     * Get the term to add to the event  photo gallery view
+     *
+     */
+    $term = taxonomy_get_term_by_name($gallery_name);
+
+}
+
+
+function event_gallery_menu_alter(&$callbacks) {
+// Create a custom permission tjs 2011Jan29
+// If the user does not have 'administer nodes' permission,
+// disable the station menu item by setting its access callback to FALSE.
+    if (!user_access('administer nodes')) {
+        $callbacks['node/add/event_gallery']['access callback'] = FALSE;
+        // Must unset access arguments or Drupal will use user_access()
+        // as a default access callback.
+        unset($callbacks['node/add/event_gallery']['access arguments']);
+    }
+}
+
+
+
+/**
+* Implementation of hook_perm().
+*/
+function event_gallery_perm() {
+return array('administer event gallery','create event gallery', 'edit own event gallery', 'edit any event gallery', 'delete own event gallery',
+'delete any event gallery');
+}
+
+
+/**
+* Implementation of hook_access().
+*/
+function event_gallery_access($op, $node, $account) {
+    $is_author = $account->uid == $node->uid;
+    switch ($op) {
+        case 'administer':
+            // Allow if user's role has 'administer station access' permission.
+            return user_access('administer event gallery', $account);
+        case 'create':
+            // Allow if user's role has 'create event station' permission.
+            return user_access('create event gallery', $account);
+        case 'update':
+            // Allow if user's role has 'edit own event station' permission and user is
+            // the author; or if the user's role has 'edit any event station' permission.
+            return user_access('edit own event gallery', $account) && $is_author ||
+                   user_access('edit any event gallery', $account);
+        case 'delete':
+            // Allow if user's role has 'delete own event station' permission and user is
+            // the author; or if the user's role has 'delete any event station' permission.
+            return user_access('delete own event gallery', $account) && $is_author ||
+            user_access('delete any event gallery', $account);
+        }
+}
+
+
+

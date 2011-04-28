@@ -1,0 +1,7 @@
+; $Id$
+name = "Event Station"
+description = "Custom module to create event stations."
+core = 6.x
+version = 6.x-1.0
+
+package = "Community Conscious Media"

@@ -1,0 +1,1337 @@
+<?php
+
+// $Id$
+/**
+* @file
+* Provides an "event station" node type.
+*/
+
+define('TAGS', 9);
+
+
+
+/**
+* Implementation of hook_menu().
+*/
+function event_station_menu() {
+
+    $items = array();
+
+    /**$items['admin/settings/event_registration'] = array(
+        'title' => 'Volunteer registration settings',
+        'description' => 'Change how volunteer registration behaves.',
+        'page callback' => 'drupal_get_form',
+        'page arguments' => array('event_registration_admin_settings'),
+        'access arguments' => array('administer site configuration'),
+        'type' => MENU_NORMAL_ITEM,
+        'file' => 'event_registration.admin.inc',
+    );*/
+
+    $items['admin/event_registration'] = array(
+        'title' => 'Volunteer Registration',
+        'description' => 'Allow volunteers to register for a PTA Event.',
+        'position' => 'right',
+        'weight' => -5,
+        'page callback' => 'system_admin_menu_block_page',
+        'access arguments' => array('administer site configuration'),
+        'file' => 'system.admin.inc',
+        'file path' => drupal_get_path('module', 'system'),
+    );
+
+    // path with autocomplete function for cities
+    $items['admin/event_registration/event_stations'] = array(
+      'title' => 'Event Stations',
+      'description' => 'Display volunteers per station',
+      'page callback' => 'drupal_get_form',
+      'page arguments' => array('get_volunteers_per_station'),
+      //'page callback' => 'get_volunteers_per_station',
+      'access callback' => TRUE,
+      //'type' => MENU_CALLBACK,
+      'type' => MENU_NORMAL_ITEM,
+    );
+
+
+
+    return $items;
+
+
+    }
+
+
+/*
+ * Implementation of hook_help().
+ */
+function event_station_help($path, $args) {}
+
+
+
+/**
+* Implementation of hook_node_info().
+*/
+function event_station_node_info() {
+// We return an array since a module can define multiple node types.
+// We're only defining one node type, type 'joke'.
+    return array(
+        'event_station' => array(
+        'name' => t('Event Station'), // Required.
+        'module' => 'event_station', // Required.
+        'description' => t('Student activity organized and overseen by a volunteer parent at a PTA event'), // Required.
+        'has_title' => TRUE,
+        'title_label' => t('Name'),
+        'has_body' => FALSE,
+        'body_label' => t('Station'),
+        'min_word_count' => 2,
+        'locked' => TRUE
+        )
+    );
+}
+
+
+function event_station_init(){
+
+    //create tag for station here.
+
+    $event = get_event();
+
+    $term = taxonomy_get_term_by_name($event);
+    if(empty($term)){
+        add_term_for_station($event);
+    }
+
+    //$term = taxonomy_get_term_by_name($event);
+
+}
+
+
+
+/**
+ * Implementation of hook_nodeapi().
+ */
+function event_station_nodeapi(&$node, $op, $a3 = NULL, $a4 = NULL) {}
+
+
+
+/**
+* Implementation of hook_menu_alter().
+*/
+function event_station_menu_alter(&$callbacks) {
+// Create a custom permission tjs 2011Jan29
+// If the user does not have 'administer nodes' permission,
+// disable the station menu item by setting its access callback to FALSE.
+    if (!user_access('administer nodes')) {
+        $callbacks['node/add/event_station']['access callback'] = FALSE;
+        // Must unset access arguments or Drupal will use user_access()
+        // as a default access callback.
+        unset($callbacks['node/add/event_station']['access arguments']);
+    }
+}
+
+
+
+/**
+* Implementation of hook_perm().
+*/
+function event_station_perm() {
+return array(
+    'administer event station',
+    'create event station',
+    'edit own event station',
+    'edit any event station',
+    'delete own event station',
+    'delete any event station'
+    );
+}
+
+
+/**
+* Implementation of hook_access().
+*/
+function event_station_access($op, $node, $account) {
+    $is_author = $account->uid == $node->uid;
+    switch ($op) {
+        case 'administer':
+            // Allow if user's role has 'administer station access' permission.
+            return user_access('administer event station', $account);
+        case 'create':
+            // Allow if user's role has 'create event station' permission.
+            return user_access('create event station', $account);
+        case 'update':
+            // Allow if user's role has 'edit own event station' permission and user is
+            // the author; or if the user's role has 'edit any event station' permission.
+            return user_access('edit own event station', $account) && $is_author ||
+                   user_access('edit any event station', $account);
+        case 'delete':
+            // Allow if user's role has 'delete own event station' permission and user is
+            // the author; or if the user's role has 'delete any event station' permission.
+            return user_access('delete own event station', $account) && $is_author ||
+            user_access('delete any event station', $account);
+        }
+}
+
+
+
+
+/**
+* Implementation of hook_form().
+*/
+function event_station_form(&$node,$form_state) {
+    // Get metadata for this node type
+    // (we use it for labeling title and body fields).
+    // We defined this in event_station_node_info().
+    $type = node_get_types('type', $node);
+
+    /**$form = array(
+        '#cache' => TRUE,
+    );*/
+
+
+    $form['title'] = array(
+        '#type' => 'textfield',
+        '#title' => check_plain($type->title_label),
+        '#required' => TRUE,
+        '#default_value' => isset($node->title) ? $node->title : '',
+        '#weight' => -15,
+        '#maxlength' => 255,
+    );
+    
+    /**$form['body_filter']['body'] = array(
+    '#type' => 'textarea',
+    '#title' => check_plain($type->body_label),
+    '#default_value' => $node->body,
+    '#rows' => 7,
+    '#required' => TRUE,
+    );
+    $form['body_filter']['filter'] = filter_form($node->format);*/
+
+    $form['description'] = array(
+    '#type' => 'textarea',
+    '#rows' => 7,
+    '#title' => t('Description'),
+    '#required' => TRUE,
+    '#default_value' => isset($node->description) ? $node->description : '',
+    '#weight' => 1
+    );
+
+    
+    $form['event'] = array(
+    '#type' => 'textfield',//select?
+    '#title' => t('Event'),
+    '#required' => TRUE,
+    '#default_value' => isset($node->event) ? $node->event : get_event(),//values are taxonomy terms from Tags vocab?
+    //'#default_value' => isset($node->event) ? $node->event : variable_get('registration_event', 'PTA Event'),
+    '#weight' => 2
+    );
+
+
+    $form['spots'] = array(
+    '#type' => 'textfield',//should be another type?
+    '#title' => t('Spots'),
+    //'#required' => TRUE,
+        //this field has multiplevalues
+    '#default_value' => isset($node->spots) ? $node->spots : '',
+    '#weight' => 3
+    );
+
+    //This field should be read only.  Values should not be saved to the database
+    //It should present the names of users base on a user reference key or foreign key
+    //This could conceivably be an embedded view.
+    //Should this be a markup field instead?
+    $form['volunteer'] = array(
+    '#type' => 'textfield',//should be another type?
+    '#title' => t('Volunteers'),
+    //'#required' => TRUE,
+        //this field has multiplevalues
+    '#default_value' => isset($node->volunteers) ? $node->volunteers : '',
+    '#weight' => 4
+    );
+
+     $form['weight'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Weight'),
+    //'#required' => TRUE,
+    '#default_value' => isset($node->weight) ? $node->weight : 0,
+    '#weight' => 5
+    );
+    
+    return $form;
+}
+
+
+/**
+* Implementation of hook_validate().
+* Step 10
+*/
+function event_station_validate($node) {
+// Enforce a minimum word length of 3 on punch lines.
+    /**if (isset($node->title) && str_word_count($node->punchline) < 3) {
+        $type = node_get_types('type', $node);
+        form_set_error('punchline', t('The punch line of your @type is too short. You
+        need at least three words.', array('@type' => $type->name)));
+    }*/
+}
+
+
+//Confused about title.  May not set title an add new field (name) instead  tjs 2011Jan30
+/**
+* Implementation of hook_insert().
+* Step 11
+*
+*/
+function event_station_insert($node) {
+
+
+    $query  = '';
+    $query .= "INSERT INTO {event_station} ";
+    $query .= "(nid, vid, name, description, spots, volunteers, event, weight) ";
+    $query .= "(%d, %d, '%s', '%s', %d, '%s', '%s', %d )";
+
+    db_query($query, $node->nid, $node->vid, $node->name, $node->description, $node->spots, $node->volunteers, $node->event, $node->weight );
+
+    //db_query("INSERT INTO {event_station} (nid, vid, name, description, spots, volunteers, event, weight) VALUES (%d, %d, '%s', '%s', %d, '%s', '%s', %d )",
+    //$node->nid, $node->vid, $node->name, $node->description, $node->spots, $node->volunteers, $node->event, $node->weight);
+}
+
+
+
+/**
+* Implementation of hook_update().
+* Step 12
+*
+*/
+function event_station_update($node) {
+    if ($node->revision) {
+    // New revision; treat it as a new record.
+        event_station_insert($node);
+    }
+    else {
+
+        /*
+         * `nid` int(10) unsigned NOT NULL DEFAULT '0',
+      `vid` int(10) unsigned NOT NULL DEFAULT '0',
+      `name` text NOT NULL,
+      `description` text NOT NULL,
+      `spots` int(10) unsigned NOT NULL DEFAULT '0',
+      `volunteers` text NOT NULL,
+      `event` varchar(255) NOT NULL DEFAULT 'PTA Event',
+      `weight` int(10) unsigned NOT NULL DEFAULT '0',
+      PRIMARY KEY (`nid`,`vid`),
+      UNIQUE KEY `vid` (`vid`),
+      KEY `nid` (`nid`)
+         *
+         *
+         *
+         *
+         *
+         */
+
+        $query = '';
+        $query .= "UPDATE {event_station}";
+        $query .= "SET name = '%s', description = '%s', spots = %d, event = '%s', weight = %d";
+        $query .= "WHERE vid = %d";
+
+
+        db_query($query, $node->name, $node->description, $node->spots, $node->event, $node->weight, $node->vid);
+    }
+}
+
+
+
+/**
+* Implementation of hook_delete().
+* Step 13
+*
+*/
+function event_station_delete(&$node) {
+// Delete the related information we were saving for this node.
+db_query('DELETE FROM {event_station} WHERE nid = %d', $node->nid);
+//Delete from node table and node_revisions table as well?
+//db_query('DELETE FROM {reg_selected_stations} WHERE regid = %d', $node->nid); 
+}
+
+
+/**
+* Implementation of hook_load().
+* Step 14
+*
+*/
+function event_station_load($node) {
+
+    $query = "";
+    $query .= "SELECT name, description, spots, event, weight ";
+    $query .= "FROM {event_station} ";
+    $query .= "WHERE vid = %d";
+
+    return db_fetch_object(db_query($query, $node->vid));
+}
+
+
+/**
+* Implementation of hook_view().
+*/
+function event_station_view($node, $teaser = FALSE, $page = FALSE) {
+// If $teaser is FALSE, the entire node is being displayed.
+    if (!$teaser) {
+    // Use Drupal's default node view.
+        $node = node_prepare($node, $teaser);
+        // Add a random number of Ha's to simulate a laugh track.
+        //$node->guffaw = str_repeat(t('Ha!'), mt_rand(0, 10));
+        // Now add the punch line.
+        $node->content['station_name'] = array(
+        '#value' => theme('event_station_name', $node),
+        '#weight' => 2);
+            
+        $node->content['station_count'] = array(
+        '#value' => theme('event_station_count', $node),
+        '#weight' => 4);
+            
+        $node->content['station_status'] = array(
+        '#value' => theme('event_station_status', $node),
+        '#weight' => 6);
+
+
+        $node->content['station_description'] = array(
+        '#value' => theme('event_station_description', $node),
+        '#weight' => 8,
+        '#collapsible' => TRUE,
+        '#collapsed' => FALSE);
+    }
+
+    // If $teaser is TRUE, node is being displayed as a teaser,
+// such as on a node listing page. We omit the punch line in this case.
+    if ($teaser) {
+    // Use Drupal's default node view.
+    $node = node_prepare($node, $teaser);
+    }
+    return $node;
+}
+
+
+function get_volunteers_per_station(){
+
+    $event_stations = array();
+    $event_stations = get_event_stations_for_reg_event();
+    $station_regids = get_station_regids($event_stations);
+
+    $station_regids = get_event_station_volunteers($station_regids);
+    
+
+}
+
+function get_event_station_volunteers($station_regids = array('station'=>NULL, 'regids'=> NULL), 
+                                      $registration_event = NULL,
+                                      $registration_year = NULL){
+
+
+    /*
+     *
+     * $station_regids = array (
+     *      'station' => NULL,
+     *      'regids' => array(),
+     * )
+     */
+
+    if(empty($station_regids)){
+        return NULL;
+    }
+
+    if(empty($station_regids['regids'])){
+        return NULL;
+    }
+
+    if(empty($registration_event)){
+        $registration_event = get_registration_event();
+    }
+
+    if(empty($registration_year)){
+        $registration_year = get_registration_year();
+    }
+
+
+    $station_regids['volunteers'] = array();
+
+    foreach($station_regids['regids'] As $regid){
+
+        $result = db_query("SELECT assignee_uid FROM {reg_registration_form} WHERE nid = '%d' AND registration_event = '%s' AND registration_year = '%d'",
+                            $stid,
+                            $registration_event,
+                            $registration_year);
+        
+        while($registration = db_fetch_object($result)){
+
+                     $station_regids['volunteers'][] = $registration->uid;
+        }
+
+     }
+
+    return $station_regids;
+    
+}
+
+
+function get_event_station_count_full(){
+
+	return db_result(db_query("SELECT COUNT(*) FROM {event_stations}"));
+
+}
+
+
+function get_event_station_count($registration_event){
+
+	return db_result(db_query("SELECT COUNT(*) FROM {event_stations} WHERE event = '%s' ", $registration_event));
+
+}
+
+function get_event_stations(){
+
+    $stations = array();
+
+    $result = db_query("SELECT nid FROM {event_station}");
+    while($station = db_fetch_object($result)){
+
+		$stations[] = $station->nid;
+    }
+
+    return $stations;
+}
+
+function get_event_stations_for_reg_event($registration_event = NULL){
+
+    $stations = array();
+
+    if(empty($registration_event)){
+        $registration_event = get_registration_event();
+    }
+
+    $result = db_query("SELECT nid FROM {event_station} WHERE event = '%s'", $registration_event);
+    while($station = db_fetch_object($result)){
+
+		$stations[] = $station->nid;
+    }
+
+    return $stations;
+}
+
+
+
+function get_station_regids($stations, $registration_event = NULL){
+
+    if(empty($registration_event)){
+        $registration_event = get_registration_event();
+    }
+
+    $regids = array();
+    foreach($stations as $station=>$stid){
+
+        $regids[] = get_regids($stid, $registration_event);
+
+    }
+
+    $station_regids = array(
+        'station_id' => $stid,
+        'regids' => $regids,
+    );
+
+    return $station_regids;
+}
+
+function get_regids($stid, $registration_event = NULL){
+
+    if(empty($registration_event)){
+        $registration_event = get_registration_event();
+    }
+    $registrations = array();
+
+    $result = db_query("SELECT regid FROM {reg_selected_stations} WHERE station_id = '%s' AND event = '%s' ", $stid, $registration_event);
+    while($registration = db_fetch_object($result)){
+
+		 $regids[] = $registration->regid;
+    }
+
+    return $regids;
+}
+
+function get_event(){
+    
+    $event = variable_get('registration_event', 'PTA Event');
+
+    return $event;
+}
+
+function get_registration_year(){
+
+    $registration_year = variable_get('registration_year', date('Y'));
+
+    return $registration_year;
+}
+
+function get_registration_event(){
+
+
+    return variable_get('registration_event', 'PTA Event');
+
+}
+
+
+function add_term_for_station($name){
+
+      $vocabulary = taxonomy_vocabulary_load(TAGS);
+
+      $found = FALSE;
+      if(!empty($vocabulary)){
+
+          foreach($vocabulary->nodes as $key => $value){
+
+              if($value == 'event_station'){
+                  $found = TRUE;
+              }
+          }
+
+          if(!$found){
+              //add 'event_station' to $vocabulary->nodes
+              $vocabulary->nodes['event_station'] = 'event_station';
+              //update vocabulary
+
+              $vocab = object_to_array($vocabulary);
+
+              taxonomy_save_vocabulary($vocab);
+          }
+
+      }
+      
+      $term = array(
+          'name' => $name,
+          'vid'  => TAGS,
+      );
+
+      taxonomy_save_term($term);
+}
+
+/**
+ *
+ * @param <object> $mixed
+ * @return <array>
+ *
+ * @author  aaron at tekserve dot com  25-Oct-2009 01:16
+ * http://www.php.net/manual/en/language.types.array.php
+ * 
+ */
+function object_to_array($mixed) {
+    if(is_object($mixed)) $mixed = (array) $mixed;
+    if(is_array($mixed)) {
+        $new = array();
+        foreach($mixed as $key => $val) {
+            $key = preg_replace("/^\\0(.*)\\0/","",$key);
+            $new[$key] = object_to_array($val);
+        }
+    }
+    else $new = $mixed;
+    return $new;
+}
+
+
+
+
+/**
+* Implementation of hook_theme().
+* The theme function registry
+* Step T1
+*
+*/
+
+function event_station_theme(){
+
+    return array(
+        'event_station_name' => array(
+            'arguments' => array('item' => NULL),
+        ),
+        'event_station_count' => array(
+            'arguments' => array('item' => NULL),
+        ),
+        'event_station_status' => array(
+            'arguments' => array('status_message' => NULL),
+        ),
+        'event_station_description'=> array(
+            'arguments' => array('item' => NULL),
+        ),
+    );
+
+}
+
+/*
+ * Step T2
+ */
+function theme_event_station_name($item){
+
+    $output = "";
+    $output .=  '<div class="station-label">' . $item . '</div>';
+    return $output;
+}
+
+/*
+ * Step T2
+ */
+function theme_event_station_count($item){
+
+    $output = "";
+    $output .= '<div class="station-count"> (Total spots:  ' . $item  . ')</div>';
+    return $output;
+}
+
+/*
+ * Step T2
+ */
+function theme_event_station_status($status_message = array()){
+
+    $output = "";
+    $output .= '<div class="station-status-' . $status_message['status'] . '">' . $status_message['status']  . '</div>';
+    $output .= '<div class="station-status-message">' . $status_message['message']  . '</div>';
+
+    return $output;
+}
+
+/*
+ * Step T2
+ */
+function theme_event_station_description($item){
+
+    $output = "";
+
+    $output .= '<div class="station-description">' . $item . '</div>';
+
+
+    $output = '<fieldset class="collapsible collapsed"><legend>Description</legend>' . $output . '</fieldset>';
+    return $output;
+}
+
+function something_here(){
+
+
+    $content['type']  = array (
+  'name' => 'Station',
+  'type' => 'station',
+  'description' => 'An activity at a PTA event.',
+  'title_label' => 'Name',
+  'body_label' => '',
+  'min_word_count' => '0',
+  'help' => 'Provide a name and description of the event.',
+  'node_options' =>
+  array (
+    'status' => true,
+    'promote' => false,
+    'sticky' => false,
+    'revision' => false,
+  ),
+  'old_type' => 'station',
+  'orig_type' => '',
+  'module' => 'node',
+  'custom' => '1',
+  'modified' => '1',
+  'locked' => '0',
+  'og_content_type_usage' => 'omitted',
+  'og_max_groups' => '',
+  'nodewords_edit_metatags' => true,
+  'nodewords_metatags_generation_method' => '0',
+  'nodewords_metatags_generation_source' => '2',
+  'nodewords_use_alt_attribute' => 1,
+  'nodewords_filter_modules_output' =>
+  array (
+    0 => 1,
+    'imagebrowser' => false,
+    'img_assist' => false,
+  ),
+  'nodewords_filter_regexp' => '',
+  'content_profile_use' => 0,
+  'comment' => '0',
+  'comment_default_mode' => '4',
+  'comment_default_order' => '1',
+  'comment_default_per_page' => '50',
+  'comment_controls' => '3',
+  'comment_anonymous' => 0,
+  'comment_subject_field' => '1',
+  'comment_preview' => '1',
+  'comment_form_location' => '0',
+  'notifications_node_ui' =>
+  array (
+    'form' => false,
+    'comment' => false,
+    'links' => false,
+    'teaserlinks' => false,
+    'subform' => false,
+    'block' => false,
+  ),
+  'notifications_content_type' =>
+  array (
+    'taxonomy' => true,
+    'grouptype' => true,
+    'thread' => true,
+    'nodetype' => true,
+    'author' => false,
+    'typeauthor' => false,
+  ),
+  'print_display' => 1,
+  'print_display_comment' => 0,
+  'print_display_urllist' => 0,
+  'print_mail_display' => 1,
+  'print_mail_display_comment' => 0,
+  'print_mail_display_urllist' => 0,
+  'print_pdf_display' => 1,
+  'print_pdf_display_comment' => 0,
+  'print_pdf_display_urllist' => 0,
+  'ant' => '1',
+  'ant_pattern' => '[field_station_name-raw]',
+  'ant_php' => 0,
+);
+$content['fields']  = array (
+  0 =>
+  array (
+    'label' => 'Name',
+    'field_name' => 'field_station_name',
+    'type' => 'text',
+    'widget_type' => 'text_textfield',
+    'change' => 'Change basic information',
+    'weight' => '13',
+    'rows' => 5,
+    'size' => '60',
+    'description' => 'Enter the name of the station.',
+    'default_value' =>
+    array (
+    ),
+    'default_value_php' => '',
+    'default_value_widget' => NULL,
+    'group' => false,
+    'required' => 1,
+    'multiple' => '0',
+    'text_processing' => '0',
+    'max_length' => '',
+    'allowed_values' => '',
+    'allowed_values_php' => '',
+    'op' => 'Save field settings',
+    'module' => 'text',
+    'widget_module' => 'text',
+    'columns' =>
+    array (
+      'value' =>
+      array (
+        'type' => 'text',
+        'size' => 'big',
+        'not null' => false,
+        'sortable' => true,
+        'views' => true,
+      ),
+    ),
+    'display_settings' =>
+    array (
+      'weight' => '13',
+      'parent' => '',
+      'label' =>
+      array (
+        'format' => 'hidden',
+      ),
+      'teaser' =>
+      array (
+        'format' => 'hidden',
+        'exclude' => 0,
+      ),
+      'full' =>
+      array (
+        'format' => 'hidden',
+        'exclude' => 0,
+      ),
+      5 =>
+      array (
+        'format' => 'default',
+        'exclude' => 0,
+      ),
+      4 =>
+      array (
+        'format' => 'default',
+        'exclude' => 0,
+      ),
+      'token' =>
+      array (
+        'format' => 'default',
+        'exclude' => 0,
+      ),
+    ),
+  ),
+  1 =>
+  array (
+    'label' => 'Description',
+    'field_name' => 'field_station_description',
+    'type' => 'text',
+    'widget_type' => 'text_textarea',
+    'change' => 'Change basic information',
+    'weight' => '14',
+    'rows' => '5',
+    'size' => 60,
+    'description' => 'Enter a description of the station.',
+    'default_value' =>
+    array (
+    ),
+    'default_value_php' => '',
+    'default_value_widget' =>
+    array (
+      'field_station_description' =>
+      array (
+        0 =>
+        array (
+          'value' => '',
+          '_error_element' => 'default_value_widget][field_station_description][0][value',
+        ),
+      ),
+    ),
+    'group' => false,
+    'required' => 0,
+    'multiple' => '0',
+    'text_processing' => '0',
+    'max_length' => '',
+    'allowed_values' => '',
+    'allowed_values_php' => '',
+    'op' => 'Save field settings',
+    'module' => 'text',
+    'widget_module' => 'text',
+    'columns' =>
+    array (
+      'value' =>
+      array (
+        'type' => 'text',
+        'size' => 'big',
+        'not null' => false,
+        'sortable' => true,
+        'views' => true,
+      ),
+    ),
+    'display_settings' =>
+    array (
+      'weight' => '14',
+      'parent' => '',
+      'label' =>
+      array (
+        'format' => 'hidden',
+      ),
+      'teaser' =>
+      array (
+        'format' => 'hidden',
+        'exclude' => 0,
+      ),
+      'full' =>
+      array (
+        'format' => 'default',
+        'exclude' => 0,
+      ),
+      5 =>
+      array (
+        'format' => 'default',
+        'exclude' => 0,
+      ),
+      4 =>
+      array (
+        'format' => 'default',
+        'exclude' => 0,
+      ),
+      'token' =>
+      array (
+        'format' => 'default',
+        'exclude' => 0,
+      ),
+    ),
+  ),
+  2 =>
+  array (
+    'label' => 'Number of Spots',
+    'field_name' => 'field_station_spots',
+    'type' => 'number_integer',
+    'widget_type' => 'number',
+    'change' => 'Change basic information',
+    'weight' => '15',
+    'description' => '',
+    'default_value' =>
+    array (
+    ),
+    'default_value_php' => '',
+    'default_value_widget' =>
+    array (
+      'field_station_spots' =>
+      array (
+        0 =>
+        array (
+          'value' => '',
+          '_error_element' => 'default_value_widget][field_station_spots][0][value',
+        ),
+      ),
+    ),
+    'group' => false,
+    'required' => 1,
+    'multiple' => '0',
+    'min' => '',
+    'max' => '',
+    'prefix' => '',
+    'suffix' => '',
+    'allowed_values' => '',
+    'allowed_values_php' => '',
+    'op' => 'Save field settings',
+    'module' => 'number',
+    'widget_module' => 'number',
+    'columns' =>
+    array (
+      'value' =>
+      array (
+        'type' => 'int',
+        'not null' => false,
+        'sortable' => true,
+      ),
+    ),
+    'display_settings' =>
+    array (
+      'weight' => '15',
+      'parent' => '',
+      'label' =>
+      array (
+        'format' => 'inline',
+      ),
+      'teaser' =>
+      array (
+        'format' => 'default',
+        'exclude' => 0,
+      ),
+      'full' =>
+      array (
+        'format' => 'default',
+        'exclude' => 0,
+      ),
+      5 =>
+      array (
+        'format' => 'default',
+        'exclude' => 0,
+      ),
+      4 =>
+      array (
+        'format' => 'default',
+        'exclude' => 0,
+      ),
+      2 =>
+      array (
+        'format' => 'default',
+        'exclude' => 0,
+      ),
+      3 =>
+      array (
+        'format' => 'default',
+        'exclude' => 0,
+      ),
+      'token' =>
+      array (
+        'format' => 'default',
+        'exclude' => 0,
+      ),
+    ),
+  ),
+  3 =>
+  array (
+    'label' => 'Volunteers',
+    'field_name' => 'field_station_volunteers',
+    'type' => 'userreference',
+    'widget_type' => 'userreference_autocomplete',
+    'change' => 'Change basic information',
+    'weight' => '16',
+    'autocomplete_match' => 'contains',
+    'size' => '60',
+    'reverse_link' => 1,
+    'description' => '',
+    'default_value' =>
+    array (
+      0 =>
+      array (
+        'uid' => NULL,
+        '_error_element' => 'default_value_widget][field_station_volunteers][0][uid][uid',
+      ),
+    ),
+    'default_value_php' => '',
+    'default_value_widget' =>
+    array (
+      'field_station_volunteers' =>
+      array (
+        0 =>
+        array (
+          'uid' =>
+          array (
+            'uid' => '',
+            '_error_element' => 'default_value_widget][field_station_volunteers][0][uid][uid',
+          ),
+          '_error_element' => 'default_value_widget][field_station_volunteers][0][uid][uid',
+        ),
+      ),
+    ),
+    'group' => false,
+    'required' => 0,
+    'multiple' => '1',
+    'referenceable_roles' =>
+    array (
+      2 => 2,
+      24 => 24,
+      19 => 0,
+      23 => 0,
+      21 => 0,
+      16 => 0,
+      4 => 0,
+      8 => 0,
+      17 => 0,
+      9 => 0,
+      15 => 0,
+      3 => 0,
+      22 => 0,
+      14 => 0,
+      11 => 0,
+      10 => 0,
+      20 => 0,
+      5 => 0,
+      25 => false,
+    ),
+    'referenceable_status' => '1',
+    'advanced_view' => '--',
+    'advanced_view_args' => '',
+    'op' => 'Save field settings',
+    'module' => 'userreference',
+    'widget_module' => 'userreference',
+    'columns' =>
+    array (
+      'uid' =>
+      array (
+        'type' => 'int',
+        'unsigned' => true,
+        'not null' => false,
+        'index' => true,
+      ),
+    ),
+    'display_settings' =>
+    array (
+      'weight' => '16',
+      'parent' => '',
+      'label' =>
+      array (
+        'format' => 'hidden',
+      ),
+      'teaser' =>
+      array (
+        'format' => 'default',
+        'exclude' => 0,
+      ),
+      'full' =>
+      array (
+        'format' => 'default',
+        'exclude' => 0,
+      ),
+      4 =>
+      array (
+        'format' => 'default',
+        'exclude' => 0,
+      ),
+      'token' =>
+      array (
+        'format' => 'default',
+        'exclude' => 0,
+      ),
+    ),
+  ),
+  4 =>
+  array (
+    'label' => 'Event',
+    'field_name' => 'field_station_event_2',
+    'type' => 'text',
+    'widget_type' => 'text_textfield',
+    'change' => 'Change basic information',
+    'weight' => '17',
+    'rows' => 5,
+    'size' => '60',
+    'description' => 'The event to which the station belongs.  This is set by the Event Administrator through her menu.',
+    'default_value' =>
+    array (
+    ),
+    'default_value_php' => 'return array(
+  0 => array(\'value\' => getRegistrationEvent()),
+);',
+    'default_value_widget' =>
+    array (
+      'field_station_event_2' =>
+      array (
+        0 =>
+        array (
+          'value' => '2011 Valentine Social',
+          '_error_element' => 'default_value_widget][field_station_event_2][0][value',
+        ),
+      ),
+    ),
+    'group' => false,
+    'required' => 1,
+    'multiple' => '0',
+    'text_processing' => '0',
+    'max_length' => '',
+    'allowed_values' => '',
+    'allowed_values_php' => '',
+    'op' => 'Save field settings',
+    'module' => 'text',
+    'widget_module' => 'text',
+    'columns' =>
+    array (
+      'value' =>
+      array (
+        'type' => 'text',
+        'size' => 'big',
+        'not null' => false,
+        'sortable' => true,
+        'views' => true,
+      ),
+    ),
+    'display_settings' =>
+    array (
+      'weight' => '17',
+      'parent' => '',
+      'label' =>
+      array (
+        'format' => 'hidden',
+      ),
+      'teaser' =>
+      array (
+        'format' => 'hidden',
+        'exclude' => 0,
+      ),
+      'full' =>
+      array (
+        'format' => 'hidden',
+        'exclude' => 0,
+      ),
+      5 =>
+      array (
+        'format' => 'default',
+        'exclude' => 0,
+      ),
+      4 =>
+      array (
+        'format' => 'default',
+        'exclude' => 0,
+      ),
+      2 =>
+      array (
+        'format' => 'default',
+        'exclude' => 0,
+      ),
+      3 =>
+      array (
+        'format' => 'default',
+        'exclude' => 0,
+      ),
+      'token' =>
+      array (
+        'format' => 'default',
+        'exclude' => 0,
+      ),
+    ),
+  ),
+  5 =>
+  array (
+    'label' => 'Weight',
+    'field_name' => 'field_station_weight',
+    'type' => 'number_integer',
+    'widget_type' => 'number',
+    'change' => 'Change basic information',
+    'weight' => '19',
+    'description' => 'Enter a number to order the stations.  A lower number is lighter, a higher number is heavier.',
+    'default_value' =>
+    array (
+      0 =>
+      array (
+        'value' => '',
+        '_error_element' => 'default_value_widget][field_station_weight][0][value',
+      ),
+    ),
+    'default_value_php' => '',
+    'default_value_widget' =>
+    array (
+      'field_station_weight' =>
+      array (
+        0 =>
+        array (
+          'value' => '',
+          '_error_element' => 'default_value_widget][field_station_weight][0][value',
+        ),
+      ),
+    ),
+    'group' => false,
+    'required' => 0,
+    'multiple' => '0',
+    'min' => '-50',
+    'max' => '50',
+    'prefix' => '',
+    'suffix' => '',
+    'allowed_values' => '',
+    'allowed_values_php' => '',
+    'op' => 'Save field settings',
+    'module' => 'number',
+    'widget_module' => 'number',
+    'columns' =>
+    array (
+      'value' =>
+      array (
+        'type' => 'int',
+        'not null' => false,
+        'sortable' => true,
+      ),
+    ),
+    'display_settings' =>
+    array (
+      'weight' => '19',
+      'parent' => '',
+      'label' =>
+      array (
+        'format' => 'above',
+      ),
+      'teaser' =>
+      array (
+        'format' => 'hidden',
+        'exclude' => 0,
+      ),
+      'full' =>
+      array (
+        'format' => 'default',
+        'exclude' => 0,
+      ),
+      5 =>
+      array (
+        'format' => 'default',
+        'exclude' => 0,
+      ),
+      4 =>
+      array (
+        'format' => 'default',
+        'exclude' => 0,
+      ),
+      'token' =>
+      array (
+        'format' => 'default',
+        'exclude' => 0,
+      ),
+    ),
+  ),
+);
+$content['extra']  = array (
+  'title' => '20',
+  'revision_information' => '26',
+  'comment_settings' => '27',
+  'menu' => '24',
+  'book' => '23',
+  'path' => '25',
+  'print' => '22',
+  'url' => '33',
+  'click_count' => '34',
+  'last_click' => '35',
+  'last_status' => '32',
+  'last_status_info' => '31',
+  'last_checked' => '28',
+  'urlhash' => '29',
+  'reciprocal' => '30',
+  'nodewords' => '21',
+);
+
+}
+
+

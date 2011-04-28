@@ -1,0 +1,7 @@
+; $Id$
+name = "Event Gallery"
+description = "Custom module to display a photo gallery for a PTA event."
+core = 6.x
+version = 6.x-1.0
+
+package = "Community Conscious Media"

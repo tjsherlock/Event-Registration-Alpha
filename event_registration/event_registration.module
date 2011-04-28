@@ -1,0 +1,1805 @@
+<?php
+// $Id$
+/**
+ * @file
+ * Allows volunteers to register for a PTA Event.
+ */
+
+
+
+//global $_event_stations;
+
+
+/*
+ * Implementation of hook_help().
+ */
+function event_registration_help($path, $args) {}
+
+
+
+/*
+ * Implementation of hook_init().
+ *
+ */
+
+function event_registration_init() {
+    
+    drupal_add_css(drupal_get_path('module', 'event_registration') .'/event_registration.css');
+    theme('event_registration_alternatebg');
+    
+
+
+}
+
+    //get_stations_to_stations();
+
+
+/**
+
+
+	//Need to add condition per taxonomy term or event to be 'Field Day'  tjs 20April2010.  Try not to hard code.
+
+	$registration_event = getRegistrationEvent();
+
+        $registration_event = ($registration_event ? $registration_event : '');
+
+	$stations = array();
+	$station_names = array();
+	$unselected_stations = array();
+	$selected_stations = array();
+	$unavailable_stations = array();
+
+
+	$availability = '';
+
+	//$query = 'SELECT nid, field_station_name_value AS name FROM {content_type_station} ORDER BY field_station_name_value';
+	$query = 'SELECT nid, field_station_name_value AS name FROM {content_type_station} ORDER BY field_station_weight_value ASC';
+	//$query = 'SELECT nid, field_station_name_value AS name, field_station_description AS description FROM {content_type_station} ORDER BY field_station_weight_value ASC';
+	//field_station_weight_value ASC
+	$result = db_query($query);
+
+	while ($row = db_fetch_object($result)) {
+
+
+		$station = node_load($row->nid);
+
+		$reg_event = $station->field_station_event_2[0]['value'];
+
+		if($registration_event == $reg_event){
+
+			//$station->field_station_name[0]['value']$station->field_station_name[0]['value']
+
+			$station_name = $station->field_station_name[0]['value'];
+			$station_names[] = $station_name;
+			$station_name_undecorated = $station_name;
+			$station_name = '<strong>' . $station_name . '</strong>';
+
+	        	$max_member_count = $station->field_station_spots[0]['value'];
+
+	        	$cur_member_count = 0;
+		        if(isset($station->field_station_volunteers)){
+
+		        	$cur_member_count = count($station->field_station_volunteers);
+
+		        	if($cur_member_count == 1){
+		        		$val = $station->field_station_volunteers[0]['uid'];
+		        		if(!isset($val)){
+		        			$cur_member_count = 0;
+		        		}
+		        	}
+		        }
+
+			//Added description 2010Oct18 tjs
+			$description = '<div class="station-item">' . $station->field_station_description[0]['value'] . '</div>';
+
+	        	if($cur_member_count < $max_member_count){
+
+			           $slots_free =  $max_member_count - $cur_member_count;
+			           $max_spots = ' (' . $max_member_count . ' spots in total) ';
+
+			           if($slots_free > 1){
+			             $availability = $max_spots . ' <div class="station-status">' . $slots_free . ' spots still available for ' . $station_name . ' </div>';
+			           }
+			           else{
+			             $availability = $max_spots . ' <div class="station-status">' . $slots_free . ' spot still available for ' . $station_name . ' </div>';
+			           }
+
+			           $unselected_stations[$row->nid] = $station_name . $availability  . $description;
+			}
+			else{
+				$unavailable_stations[$row->nid] = $station_name . ' (no available spot)' . $description;
+			}
+
+		}//if ($registration_event == $reg_event)
+	}//while
+
+
+	$registration_form = new stdClass();
+	$registration_form = get_registration_form();
+	$selected_stations = (array)$registration_form->field_hb_stations;
+
+
+	if(!empty($selected_stations)){
+
+		foreach((array)$selected_stations as $key => $selected_station){
+
+			$stations[$selected_station['value']] = $selected_station['value'];
+
+		}
+
+		foreach((array)$unselected_stations as $key => $unselected_station){
+
+			$stations[$key] = $unselected_station;
+		}
+
+		foreach((array)$unavailable_stations as $key => $unavailable_station){
+
+			$stations[$key] = $unavailable_station;
+		}
+
+	}
+	else{
+
+
+		foreach((array)$unselected_stations as $key => $unselected_station){
+
+			$stations[$key] = $unselected_station;
+		}
+
+		foreach((array)$unavailable_stations as $key => $unavailable_station){
+
+			$stations[$key] = $unavailable_station;
+		}
+
+	}
+
+	return $stations;
+**/
+
+
+
+/**
+* Implementation of hook_menu().
+*/
+function event_registration_menu() {
+
+    $items = array();
+
+    $items['admin/settings/event_registration'] = array(
+        'title' => 'Volunteer registration settings',
+        'description' => 'Change how volunteer registration behaves.',
+        'page callback' => 'drupal_get_form',
+        'page arguments' => array('event_registration_admin_settings'),
+        'access arguments' => array('administer site configuration'),
+        'type' => MENU_NORMAL_ITEM,
+        'file' => 'event_registration.admin.inc',
+    );
+
+
+    // Step CB1
+    // path with autocomplete function for cities
+    $items['ptamembers/autocomplete'] = array(
+      'title' => 'Autocomplete for PTA members',
+      'page callback' => 'pta_members_autocomplete',
+      'access callback' => TRUE,
+      'type' => MENU_CALLBACK,
+        //'access arguments' => array('access content'),
+
+
+       //'access callback' => 'user_access',
+      //'access arguments' => array('use event registration autocomplete'),  //or whatever permission makes sense
+      //'access arguments' => array('access user profiles'),
+      //'access arguments' => array('use event registration autocomplete'),
+     
+      //'file' => 'event_registration.module',
+    );
+
+
+    $items['station/availability'] = array(
+    'title' => 'Status refresh',//required
+    'page callback' => 'station_availability',
+    //'access callback' => TRUE,
+    //'page arguments' => array(),
+    //'access arguments' => array('use status refresh'),
+    'access arguments' => array('use status refresh'),
+    'type' => MENU_CALLBACK,
+    );
+
+    /**function userreference_menu() {
+  $items = array();
+  $items['userreference/autocomplete'] = array(
+    'title' => 'Userreference autocomplete',
+    'page callback' => 'userreference_autocomplete',
+    'access arguments' => array('access content'),
+    'type' => MENU_CALLBACK
+  );
+  return $items;
+}*/
+
+
+    return $items;
+}
+
+
+//function status_refresh($station = array()) {//$station_spots
+function station_availability($station_id, $station_spots, $volunteer_count) {
+//function station_availability($status_message = array()) {
+
+    $spots_left = '';
+    //$volunteer_count = get_station_volunteer_count($station);//$station_id, $station_event
+    if($volunteer_count <= $station_spots){
+        $spots_left = $station_spots - $volunteer_count;
+    }
+
+    if($spots_left == 0){
+
+        $status = 'closed';
+        $message = '.';
+
+    }elseif($spots_left == 1){
+
+        $status = 'open';
+
+        $message = ':  ' . $spots_left . ' spot left.';
+
+    }elseif($spots_left > 1){
+
+        $status = 'open';
+        $message = ':  ' . $spots_left . ' spots left.';
+    }
+
+
+
+    /*$status_message = array();
+    $status_message['status'] = $status;
+    $status_message['message'] = $message;*/
+
+
+    /*$station_status_message = "";
+    $station_status_message .= '<div class="station-status-' . $status . '">' . $status  . '</div>';
+    $station_status_message .= '<div class="station-status-message">' . $message  . '</div>';*/
+
+    //return $status_message;
+
+    // Check to see if jQuery made the call. The AJAX call used
+    // the POST method and passed in the key/value pair js = 1.
+    if (!empty($_POST['js'])) {
+
+
+        // jQuery made the call.
+        // This will return results to jQuery's request.
+        //drupal_json($station_status_message);
+        //drupal_json($message);
+
+        drupal_json(array(
+            'id' => t($station_id),
+            'status' => t($status),
+            'message' => t($message),
+            )
+        );
+    }
+
+}
+
+
+ /**
+* Implementation of hook_menu_link_alter().
+*/
+function event_registration_menu_alter(&$callbacks) {
+// Create a custom permission tjs 2011Jan29
+// If the user does not have 'administer nodes' permission,
+// disable the station menu item by setting its access callback to FALSE.
+    /*if (!user_access('administer nodes')) {
+        $callbacks['node/add/event_registration']['access callback'] = FALSE;
+        // Must unset access arguments or Drupal will use user_access()
+        // as a default access callback.
+        unset($callbacks['node/add/event_registration']['access arguments']);
+    }*/
+
+
+    //Alter menu item if registration already exists for current user unless current user is administrator (chair or other
+    // designated registrant.  tjs 2011 Feb 06.
+    // Computer volunteer to current user.  If equal then disable menu item.
+
+   
+
+    
+
+}
+
+
+function event_registration_menu_link_alter(&$item, $menu) { //
+
+    // Hide the Create content link.
+    if ($item['link_path'] == 'node/add') {
+    $item['hidden'] = 1;
+    }
+}
+
+
+/**
+* Implementation of hook_node_info().
+*/
+function event_registration_node_info() {
+// We return an array since a module can define multiple node types.
+// We're only defining one node type, type 'joke'.
+    return array(
+        'event_registration' => array(
+        'name' => t('Event Registration'), // Required.
+        'module' => 'event_registration', // Required.
+        'description' => t('Allows the user to registration for and event and volunteer for station in the event.'), // Required.
+        'has_title' => TRUE,
+        'title_label' => t('Name'),
+        'has_body' => FALSE,
+        'body_label' => t(''),
+        'min_word_count' => 2,
+        'locked' => TRUE
+        )
+    );
+}
+
+
+function event_registration_set_event_stations($event_stations){
+
+    global $_event_stations;
+
+    $_event_stations = $event_stations;
+}
+
+
+function event_registration_get_event_stations(){
+
+    global $_event_stations;
+    return  $_event_stations;
+
+}
+//function get_station_options($registration_event = null){
+function get_station_info($registration_event = null){
+
+    if(empty($registration_event)){
+        $registration_event = get_registration_event();
+    }
+
+    $stations = event_registration_get_stations($registration_event);
+    $station_options = array();
+
+    $status_message = array();
+    $station_count = count($stations) - 1;
+    $i = 0;
+
+    foreach ($stations as $index => $station) {
+
+        /*if($i == $station_count){
+            $station_status = "open";
+            // Is this the right place for this styling?  How do I add it afterwards? tjs 2011Feb07
+            $station_options[$station['nid']] = '<div class="station-label">' . $station['name'] . '</div> &nbsp;' . '<div class="station-count"> (Total spots:  ' . $station['spots'] . ') </div> &nbsp;' . '<div class="station-status">' . $station_status . '</div>' . '<div class="station-description-last">' . $station['description'] . '<br/></div>' . '<br/><br/>';//Add total slots and available slots
+
+        }else{*/
+
+
+            //$status_message = compose_status_message($station);
+            
+
+            // Is this the right place for this styling?  How do I add it afterwards? tjs 2011Feb07
+
+            /*$station_options_value = '';
+            $station_options_value .= '<div class="station-label">' . $station['name'] . '</div>';
+            $station_options_value .= '<div class="station-count"> (Total spots:  ' . $station['spots'] . ') </div>';
+            $station_options_value .= '<div class="station-status">' . $station_status . '</div>';
+            $station_options_value .= '<div class="station-description">' . $station['description'] . '</div>';*/
+
+
+
+            $station_options_value = '';
+            $station_options_value .= theme('event_station_name', $station['name']);
+            //$station_options_value .= $station['name'];
+
+            $station_options_value .= theme('event_station_count', $station['spots']);
+            //$station_options_value .= $station['spots'];
+
+            //$station_options_value .= theme('event_station_status', $station_status);
+            //$station_options_value .= theme('station_status_message', $status_message, $station);
+            $station_options_value .= theme('station_status_message', $station);
+            //$station_options_value .= $station_status;
+
+            $station_options_value .= theme('event_station_description', $station['description']);
+            //$station_options_value .=  $station['description'];
+
+            $station_options[$station['nid']] =  $station_options_value; //$station['name'];
+
+            //}
+        //$i++;
+    }
+
+    $station_info['options'] = $station_options;
+    //$station_info['event_station_nodes'] = $stations;
+
+    event_registration_set_event_stations($stations);
+    
+    //return $station_options;
+   return $station_info;
+}
+
+
+function compose_status_message($station = array()){
+
+    $spots_left = '';
+    $volunteer_count = get_station_volunteer_count($station);
+    
+    if($volunteer_count <= $station['spots']){
+        $spots_left = $station['spots'] - $volunteer_count;
+    }
+
+    if($spots_left == 0){
+        
+        $status = 'closed';
+        $message = '.';
+        
+    }elseif($spots_left == 1){
+        
+        $status = 'open';
+        
+        $spots_left = '<div id="spots-left-' . $station['nid'] . '" class="spots-left">' . $spots_left . '</div>';
+        //$spots_left = '<div class="spots-left">' . $spots_left . '</div>';
+        
+        $message = ':  ' . $spots_left . ' spot left.';
+        
+    }elseif($spots_left > 1){
+        
+        $status = 'open';
+        $spots_left = '<div id="spots-left-' . $station['nid'] . '" class="spots-left">' . $spots_left . '</div>';
+        $message = ':  ' . $spots_left . ' spots left.';
+    }
+
+
+
+    $status_message = array();
+    $status_message['status'] = $status;
+    $status_message['message'] = $message;
+
+    return $status_message;
+    
+}
+
+/**
+ *
+ * @param <array> $station
+ * @return <int>
+ */
+function get_station_volunteer_count($station = array()){//$station_id, $station_event
+
+//SELECT COUNT(station_id) FROM reg_selected_stations
+//WHERE station_id = $station->id, event= $registration_event, year=$registration_event
+//
+//attached to a menu_callback like  $items['ptamembers/autocomplete']
+    
+$query = '';
+$query .= 'SELECT COUNT(station_id) FROM reg_selected_stations';
+$query .= ' WHERE station_id = "%s" AND event = "%s" AND registration_year = "%d"';
+
+
+$count = db_result(db_query($query, $station['nid'], $station['event'], get_registration_year()));
+
+return $count;
+
+
+}
+
+
+
+/**
+ *
+ * @param <array> $station
+ * @return <int>
+ */
+function get_volunteer_count($station){
+
+    return 0;
+}
+
+
+/**
+* Implementation of hook_form().
+*/
+//(&$node, $form_state)
+function event_registration_form(&$node, $form_state) {
+
+    // Get metadata for this node type
+    // (we use it for labeling title and body fields).
+    // We defined this in event_station_node_info().
+    $type = node_get_types('type', $node);
+
+    $registration_event = get_event();
+    $registration_year = get_registration_year();
+
+    global $user;
+    $ADMIN = _is_admin($user);// replace with user_access(arg1, arg2)?  tjs 2011 Mar 7
+
+
+    $form['title'] = array(
+        '#type' => 'hidden', //item',
+        '#title' => check_plain($type->title_label),
+        '#value' => drupal_set_title('Event Registration'),//'Event Registration',
+        '#default_value' => $node->title,
+        '#maxlength' => 255,
+    );
+
+
+ if($ADMIN){
+
+        //The item element is formatted in the same way as other input element types like textfield or
+        //select field, but it lacks the input field.
+        $form['registrant_uid'] = array(
+            '#type' => 'item',
+            '#title' => t('Registrant'),
+            //'#description' => '',
+            '#value' => $user->name,
+            //'#weight' => -10,
+        );
+
+
+        //include only if user is a form manager such as a chair, developer, etc.
+        //$form['assignee_uid'] = array(
+        $form['assignee'] = array(
+           '#type' => 'textfield',
+           '#title' => t('Volunteer'),
+           '#size' => 30,
+           //'#maxlength' => 60,
+           '#autocomplete_path' => 'ptamembers/autocomplete',//STEP CB2
+           '#maxlength' => USERNAME_MAX_LENGTH,
+          );
+
+        $form['assignee_uid'] = array(
+            '#type' => 'hidden',
+            '#value' => 0,
+        );
+    }
+    else{
+
+        //The item element is formatted in the same way as other input element types like textfield or
+        //select field, but it lacks the input field.
+        $form['registrant_uid'] = array(
+            '#type' => 'hidden',//item',
+            '#title' => t('Registrant'),
+            //'#description' => '',
+            '#value' => $user->name,
+            //'#weight' => -10,
+        );
+
+
+        $form['assignee'] = array(
+            '#type' => 'item',//'textfield',
+            '#title' => '',//t('Volunteer'),
+            '#size' => 30,
+            //'#maxlength' => 60,
+            //'#autocomplete_path' => 'ptamembers/autocomplete',//STEP CB2
+            '#maxlength' => USERNAME_MAX_LENGTH,
+            '#value' => theme(event_registration_volunteer_name, $user->name),
+            //'#value' => $user->name,
+        );
+
+        $form['assignee_uid'] = array(
+            '#type' => 'hidden',
+            '#value' => $user->uid,
+        );
+
+
+    }
+
+    $form['registration_year'] = array(
+        '#type' => 'hidden',//'item',
+        '#title' =>  t('Registration Year'),
+        //'#required' => TRUE,
+        '#value' => isset($registration_year) ? $registration_year : '',
+        //'#weight' => 1,
+        '#maxlength' => 255,
+    );
+
+    $form['registration_event'] = array(
+        '#type' => 'hidden',
+        '#title' =>  t('Registration Event'),
+        //'#required' => TRUE,
+        '#value' => isset($registration_event) ? $registration_event : '',
+        //'#weight' => 1,
+        '#maxlength' => 255,
+    );
+
+    $form['registration_event_year'] = array(
+        '#type' => 'item',
+        '#title' =>  t('Registration Event'),
+        //'#required' => TRUE,
+        '#value' => theme(event_registration_event_year,(isset($registration_event) ? $registration_event : ''),($form['registration_year']['#value'])),
+        //'#weight' => 1,
+        '#maxlength' => 255,
+    );
+
+    $station_info = get_station_info($registration_event);
+
+
+    $form['event_stations'] = array(
+        '#type' => 'checkboxes',
+        '#title' => t('Stations'),
+        //'#options' => get_station_options($registration_event),//$station_options,
+        '#options' => $station_info['options'],//$station_options,
+        '#required' => TRUE,
+        '#default_value' => array(''),
+        '#description' => t('Select one or more available stations for this event.'),
+        '#theme' => 'event_registration_checkboxes',
+        //'#attributes' => array('event_station_nodes' => $station_info['event_station_nodes']),
+    );
+
+
+    return $form;
+
+}
+
+
+function event_registration_form_alter(&$form, $form_state, $form_id) {
+
+    if($form_id == 'event_registration_node_form'){
+
+        $form['#after_build'][] = 'event_registration_after_build';
+        $form['#submit'][] = 'event_registration_form_submit';
+        
+        $elements = $form;
+    }
+}
+
+
+function event_registration_after_build(&$form, $form_state){
+
+    if($form['form_id']['#value'] == 'event_registration_node_form'){
+        //$elements = $form;
+
+        //$station_attributes = $elements['event_station_nodes'];//['slots']< ['volunteers']
+        $station_attributes = event_registration_get_event_stations();//['slots']< ['volunteers']
+
+        //foreach($station_attributes['#value'] as $key => $element){
+        foreach($form['event_stations'] as $key => &$event_station){// by reference
+
+                if($event_station['#type']== 'checkbox'){
+                    //$element['#suffix'] = '<div border-bottom></div>';
+                    if($station_attributes[$key]['volunteers']>=$station_attributes[$key]['spots']){
+
+                        _event_registration_disabled($event_station);
+
+                        /*if(!isset($element['#attributes'])){
+                            $element['#attributes'] = array();
+                        }
+
+                        $element['#attributes']['disabled'] = 'disabled';*/
+                     }
+                }
+         }
+
+
+
+
+        //foreach ($form['event_stations'] as &$station) {
+
+            //if($station['#type'] == 'checkbox'){
+
+                //$station_id = $station['#return_value'];
+
+                /*if($form['event_stations']['#attributes']['event_station_nodes'][$station_id]['slots']< ['volunteers'])
+                  if (!isset($station['#attributes'])) {
+                    $station['#attributes'] = array();
+                  }*/
+                  //$station['#attributes']['readonly'] = 'readonly';
+
+                //$station['#suffix'] = '<div class="bottom-border"></div>';
+
+                //$station['attributes'] = array(
+                //    '#suffix' => '<div bottom-border></div>',
+                //);
+            //}
+
+        //}
+
+    }//event_registration_node_form
+
+    return $form;
+
+}
+
+
+function event_registration_form_submit($form, &$form_state){
+
+  // This code is executed, while the form is submitted. There's
+  // a wide range of possible operations to execute here, such as
+  // process and store settings, enable extra modules, or save
+  // contents to the new site (unless the operations are too
+  // expensive: the Batch API is a good choice for such operations,
+  // but it needs to be coded inside hook_profile_tasks(), not
+  // here).
+
+  // In this example profile, we just store the submitted text to
+  // a temporary variable, to be used in further tasks.
+  //variable_set('example_submitted_text', $form_state['values']['example_text']);
+
+    //$values = $form['values'];
+
+        //this value should depend on the current user's role.
+        $form_state['values']['registrant_uid'] = $form_state['values']['uid'];//item
+        $form_state['values']['registration_event'] = $form['registration_event']['#value'];//item
+        $form_state['values']['registration_year'] = $form['registration_year']['#value'];// hidden
+        $form_state['values']['assignee_uid'] = event_registration_get_user(check_plain($form_state['values']['assignee']));// not initialized previously
+        $form_state['values']['title'] = $form_state['values']['assignee'] . ' Registration';//update title to include volunteer's name
+
+        //If volunteer > spots then disable station. tjs 2011 March 13
+        /*$node = node_submit($form_state['values']);
+        event_registration_set_title($node);
+        $form_state['values'] = (array)$node;*/
+
+
+}
+
+function event_registration_get_user($username){
+
+        $query = "SELECT uid FROM {users} WHERE name = '%s'";
+
+	$result = db_query($query, $username);
+
+	while ($row = db_fetch_object($result)) {
+                $uid = $row->uid;
+        }
+
+        return $uid;
+}
+
+/**
+* Implementation of hook_perm().
+*
+* Ojo los espacios blancos !  tjs 2022 March 7
+*
+*/
+function event_registration_perm() {
+    return array(
+        'administer event registration',
+        'create event registration',
+        'edit own event registration',
+        'edit any event registration',
+        'delete own event registration',
+        'delete any event registration',
+        'use event registration autocomplete',
+        'use status refresh',
+        );
+}
+
+
+/**
+* Implementation of hook_access().
+*/
+function event_registration_access($op, $node, $account) {
+    $is_author = $account->uid == $node->uid;
+    switch ($op) {
+        case 'administer':
+            // Allow if user's role has 'administer station access' permission.
+            return user_access('administer event registration', $account);
+        case 'create':
+            // Allow if user's role has 'create event station' permission.
+            return user_access('create event registration', $account);
+        case 'update':
+            // Allow if user's role has 'edit own event station' permission and user is
+            // the author; or if the user's role has 'edit any event station' permission.
+            return user_access('edit own event registration', $account) && $is_author ||
+                   user_access('edit any event registration', $account);
+        case 'delete':
+            // Allow if user's role has 'delete own event station' permission and user is
+            // the author; or if the user's role has 'delete any event station' permission.
+            return user_access('delete own event registration', $account) && $is_author ||
+            user_access('delete any event registration', $account);
+        }
+}
+
+/**function get_registration_form(){
+
+	$got_from_q = $_GET['q'];
+	$slash = '/';
+	$node_term = 'node';
+
+	$node_term = getNodeTerm();
+
+	$edit_term = 'edit';
+	$registration_form = new stdClass();
+
+	if($node_term == substr($got_from_q, 0, strlen($node_term))){
+
+		if($edit_term == substr($got_from_q, -4, strlen($edit_term))){
+
+		    $first_slash_pos = strpos($got_from_q, $slash);
+		    $second_slash_pos = strrpos($got_from_q, $slash);
+
+		    $node_id = substr($got_from_q,$first_slash_pos + 1, $second_slash_pos - ($first_slash_pos +1));
+
+		    $registration_form = node_load($node_id);
+		}
+	}
+
+   return $registration_form;
+
+}*/
+
+function get_node_term(){
+
+	return 'node';
+}
+
+
+
+
+function event_registration_get_stations($event){
+
+        $query = "SELECT nid, name, description, spots, volunteers, event,  weight FROM {event_station} WHERE event = '%s' ORDER BY weight ASC";
+
+	$result = db_query($query, $event);
+
+        $stations = array();
+	while ($row = db_fetch_object($result)) {
+
+                $stations[$row->nid] = array(
+                    'name' => $row->name,
+                    'nid' =>  $row->nid,
+                    'description' => $row->description,
+                    'event' => $row->event,
+                    'spots' => $row->spots,
+                    'volunteers' => $row->volunteers,
+                    'weight' => $row->weight
+                );
+
+        }//while
+
+        foreach($stations as &$station){
+
+            $station['volunteers'] = get_station_volunteer_count($station);
+
+
+        }
+
+        return $stations;
+}
+
+
+
+
+function get_stations_to_stations(){
+
+
+
+
+    /**
+
+  `nid` int(10) unsigned NOT NULL DEFAULT '0',
+  `vid` int(10) unsigned NOT NULL DEFAULT '0',
+  `event` longtext,
+  `description` longtext,
+  `name` longtext,
+  `spots` int(11) NOT NULL DEFAULT '0',
+  `weight` int(10) unsigned NOT NULL DEFAULT '0',
+         */
+
+
+        //SELECT * FROM `station` WHERE 1
+    $query_station_1 = 'SELECT nid, vid, event, description, name, spots, weight FROM {station}';
+    $result_1 = db_query($query_station_1);
+
+    while ($row = db_fetch_object($result_1)) {
+
+
+        event_station_insert($row);
+
+        /**$stations[] = array(
+
+                        'name' => $row->name,
+                        'nid' =>  $row->nid,
+                        'event' => $row->event,
+                    );*/
+    }
+
+
+
+     /**
+         *
+         * nid
+    field_station_event_value
+    field_station_weight_value
+    field_station_description_value
+    field_station_name_value
+    field_station_spots_value
+    field-station_event_2_value
+         *
+         *
+         *
+         *
+         */
+
+
+
+
+
+
+
+        //$query = 'SELECT nid, name, event FROM {station} ORDER BY weight ASC';
+            /*$query = 'SELECT nid, field_station_name_value AS name, field_station_description AS description FROM {content_type_station} ORDER BY field_station_weight_value ASC';
+            //field_station_weight_value ASC
+            $result = db_query($query);
+
+            while ($row = db_fetch_object($result)) {
+                    $stations[] = array(
+                        'name' => $row->name,
+                        'nid' =>  $row->nid,
+                        'event' => $row->event,
+                    );
+
+            };*///while
+
+
+
+            //*while ($row = db_fetch_object($result)) {
+
+
+     //               $stations[] = array(
+     //                   'name' => $row->name,
+     //                   'nid' =>  $row->nid,
+     //                   'event' => $row->event,
+     //               );
+
+            //}//while
+
+           //set, update
+
+           //drupal_write_record($table, $object);
+}
+
+/**
+ *
+ * copy code
+ *
+ *
+ * 
+ *
+ * 
+ * INSERT INTO `lsptadev`.`station` ('nid', 'vid','event', 'description', 'name', 'spots', 'weight')
+ * SELECT 'nid', 'vid', 'field_station_event_value', 'field_station_description_value', 'field_station_name_value','field_station_spots_value', 'field_station_weight_value'
+ * FROM  `lsptadev`.`content_type_station_4`
+ * VALUES (5, 'Tjessem', 'Jakob')
+ *
+ * 'vid', 'nid', 'field_station_event_value', field_station_description_value, field_station_name_value, field_station_spots_value, field_station_event_2_value
+ *
+ */
+
+//INSERT INTO  `lsptadev`.`station`
+//SELECT *
+//FROM  `lsptadev`.`content_type_station_4`
+
+		//$station = node_load($row->nid);
+
+		//$reg_event = $station->field_station_event_2[0]['value'];
+
+		/**if($registration_event == $reg_event){
+
+			//$station->field_station_name[0]['value']$station->field_station_name[0]['value']
+
+			$station_name = $station->field_station_name[0]['value'];
+			$station_names[] = $station_name;
+			$station_name_undecorated = $station_name;
+			$station_name = '<strong>' . $station_name . '</strong>';
+
+	        	$max_member_count = $station->field_station_spots[0]['value'];
+
+	        	$cur_member_count = 0;
+		        if(isset($station->field_station_volunteers)){
+
+		        	$cur_member_count = count($station->field_station_volunteers);
+
+		        	if($cur_member_count == 1){
+		        		$val = $station->field_station_volunteers[0]['uid'];
+		        		if(!isset($val)){
+		        			$cur_member_count = 0;
+		        		}
+		        	}
+		        }
+
+			//Added description 2010Oct18 tjs
+			$description = '<div class="station-item">' . $station->field_station_description[0]['value'] . '</div>';
+
+	        	if($cur_member_count < $max_member_count){
+
+			           $slots_free =  $max_member_count - $cur_member_count;
+			           $max_spots = ' (' . $max_member_count . ' spots in total) ';
+
+			           if($slots_free > 1){
+			             $availability = $max_spots . ' <div class="station-status">' . $slots_free . ' spots still available for ' . $station_name . ' </div>';
+			           }
+			           else{
+			             $availability = $max_spots . ' <div class="station-status">' . $slots_free . ' spot still available for ' . $station_name . ' </div>';
+			           }
+
+			           $unselected_stations[$row->nid] = $station_name . $availability  . $description;
+			}
+			else{
+				$unavailable_stations[$row->nid] = $station_name . ' (no available spot)' . $description;
+			}
+
+		}//if ($registration_event == $reg_event)
+                 */
+	//}//while
+
+
+//}
+
+
+/**
+ * Implementation of hook_nodeapi()
+ */
+function event_registration_nodeapi(&$node, $op, $teaser, $page) {
+    global $user;
+switch ($op) {
+    // The 'view' operation means the node is about to be displayed.
+    case 'view':
+    // Abort if the user is an anonymous user (not logged in) or
+    // if the node is not being displayed on a page by itself
+    // (for example, it could be in a node listing or search result).
+    if ($user->uid == 0 || !$page) {
+    
+    }
+
+    // Show the widget, but only if the full node is being displayed.
+    if (!$teaser) {
+        /*$node->content['plusone_widget'] = array(
+        '#value' => plusone_widget($node->nid),
+        '#weight' => 100,
+        );*/
+    }
+    break;
+
+    case 'delete':
+// Node is being deleted; delete associated vote data.
+    //db_query('DELETE FROM {plusone_vote} WHERE nid = %d', $node->nid);
+    break;
+    // Find out which node types we should annotate.
+    //$types_to_annotate = variable_get('annotate_nodetypes', array('page'));
+
+    // Abort if this node is not one of the types we should annotate.
+    //if (!in_array($node->type, $types_to_annotate)) {
+    //break;
+    //}
+    // Add our form as a content item.
+    /**$node->content['annotation_form'] = array(
+    '#value' => drupal_get_form('annotate_entry_form', $node),
+    '#weight' => 10
+    );
+    break;*/
+    }
+
+    /**Item
+The item element is formatted in the same way as other input element types like textfield or
+select field, but it lacks the input field.
+$form['removed'] = array(
+'#title' => t('Shoe size'),
+'#type' => 'item',
+'#description' => t('This question has been removed because the law prohibits us
+from asking your shoe size.'),
+);*/
+    
+}
+
+
+function event_registration_get_users(){
+
+
+     $query = "SELECT uid, name FROM {users} ORDER BY name ASC";
+	//$query = 'SELECT nid, field_station_name_value AS name, field_station_description AS description FROM {content_type_station} ORDER BY field_station_weight_value ASC';
+	//field_station_weight_value ASC
+	$result = db_query($query);
+
+        $users = array();
+	while ($row = db_fetch_object($result)) {
+
+                $users[] = array(
+                    'name' => $row->name,
+                    'uid' =>  $row->uid,
+                );
+
+        }//while
+
+        return $users;
+    
+}
+
+
+/**
+* autocomplete helper
+* $string = string for search
+* Step CB3
+*/
+function pta_members_autocomplete($string) {
+  $matches = array();
+  //search table `cities` for cities that begin with the letters the user enters in the form
+  $result = db_query_range("SELECT uid, name FROM {users} WHERE LOWER(name) LIKE LOWER('%s%')", $string, 0, 10);
+  // add matches to $matches
+  while ($data = db_fetch_object($result)) {
+    //$matches[$data->name] = check_plain($data->name);
+    $matches[$data->name] = check_plain($data->name);
+  }
+  // return for JS
+  //print drupal_to_js($matches);
+  //exit();
+  //print_r($matches);
+  drupal_json($matches);
+
+}
+
+
+/**
+* Implementation of hook_theme().
+* The theme function registry
+* Step T1
+*
+*/
+
+function event_registration_theme(){
+
+    return array(
+        'event_registration_checkboxes' => array(
+            'arguments' => array('element' => NULL),
+        ),
+        'event_registration_alternatebg' => array(
+        'arguments' => array(),
+        ),
+       /*'event_registration_registration' => array(
+            'arguments' => array('node'),
+        ),
+        'event_registration_regid' => array(
+            'arguments' => array('regid' => NULL),
+        ),
+        'event_registration_registrant_name' => array(
+            'arguments' => array('registrant_name' => NULL),
+        ),
+        */
+        'event_registration_event_year' => array(
+            'arguments' => array('event' => NULL, 'year' => NULL),
+        ),
+        'event_registration_volunteer_name' => array(
+            'arguments' => array('volunteer_name' => NULL),
+        ),
+        'event_registration_station' => array(
+            'arguments' => array('node'),
+        ),
+        //'event_registration_stations' => array(
+        //    'arguments' => array('stations' => NULL),
+        //),
+        'event_registration_assignee_name' => array(
+            'arguments' => array('assignee_name' => NULL),
+        ),
+        /* for separate template   */
+        'event_registration' => array(
+        'template' => 'event-registration',
+        'arguments' => array('variables' => NULL),
+        ),
+        'station_status_message' => array(
+            'arguments' => array('station' => array()),
+        )
+
+
+    );
+
+}
+
+
+function theme_event_registration_checkboxes($elements){
+    //wrap in div
+    $output = '';
+    $output .= '<div class="stations">';
+    //theme array here?
+    // foreach look
+    //element['#newattribute'] = 'div class=""';
+    //
+    //
+    
+    /**$station_attributes = $elements['#attributes']['event_station_nodes'];//['slots']< ['volunteers']
+
+    foreach($elements as $key => $element){
+
+        if($element['#type']== 'checkbox'){
+            //$element['#suffix'] = '<div border-bottom></div>';
+            if($station_attributes[$key]['volunteers']>=$station_attributes[$key]['spots']){
+
+                if(!isset($element['#attributes'])){
+                    $element['#attributes'] = array();
+                }
+
+                $element['#attributes']['readonly'] = 'readonly';
+            }
+        }
+    }*/
+
+    $output .= drupal_render($elements);//$element;
+    $output .= '</div>';
+
+    return $output;
+
+}
+
+
+/**
+* Theme function that just makes sure our JavaScript file
+* gets included.
+*/
+function theme_event_registration_alternatebg() {
+drupal_add_js(drupal_get_path('module', 'event_registration') .'/js/alternatebg.js');
+}
+
+
+function theme_station_status_message($station = array()){ //station
+    drupal_add_js(drupal_get_path('module', 'event_registration') .'/js/station-status-message.js');
+    $status_message = compose_status_message($station);
+    $volunteer_count = get_station_volunteer_count($station);//$station);
+
+    $station_spots = $station['spots'];
+    // User is eligible to vote.
+
+    $station_id = $station['nid'];
+     //$status_message_refresh .= l(t('refresh'), "station/availability/$station_spots/$volunteer_count", array(
+     $status_message_refresh .= l(t('refresh'), "station/availability/$station_id/$station_spots/$volunteer_count", array(
+        'attributes' => array('class' => 'event-registration-link'),
+     ));
+
+    $station_status_message = '';
+    $station_status_message .= '<div id="station-status-' . $station['nid'] . '" class="station-status-' . $status_message['status'] . '">' . $status_message['status']  . '</div>';
+    $station_status_message .= '<div id="station-status-message-' . $station['nid'] . '" class="station-status-message">' . $status_message['message']  . '</div>';
+    $station_status_message .=  ' ' . $status_message_refresh;
+
+  
+   
+
+    return $station_status_message;
+}
+
+
+function theme_event_registration_registration($node) {
+
+    //$registration['created'] = $row->created;
+
+    //$registration['station'][$row->delta] = $row->station_id;
+
+    $volunteer = user_load($node->assignee_uid);
+
+    if(!empty($node->registrant_uid)){
+
+        $registrant = user_load($node->registrant_uid);
+    }
+
+    $output = '<div class="registration">';
+
+
+    $output .= '</div><br />';//registration
+    
+    return $output;
+}
+
+
+
+function theme_event_registration_regid($regid){
+
+    $output = '';
+    $output .= '<div class="registration-item-id">';
+    $output .= '<div class ="registration-item-id-value">';
+    $output .= $regid;//check_markup($node->nid);
+    $output .= '</div>';
+    $output .= '<div class="registration-item-id-label">Registration #</div>';
+    $output .= '</div>';
+
+    return $output;
+    
+}
+
+function theme_event_registration_registrant_name($registrant_name){
+
+    $output = '';
+
+
+    $output .= '<div class="registration-item-registrant">';
+    $output .= '<div class ="registration-item-registrant-value">';
+    $output .=  $registrant_name;//check_markup($node->registrant_uid);
+    $output .= '</div>';
+    $output .= '<div class="registration-item-registrant-label">Registered by: </div>';
+    $output .= '</div>';
+
+    return $output;
+    
+}
+
+
+function theme_event_registration_volunteer_name($volunteer_name){
+
+    $output = '';
+
+    $output .= '<div class="registration-item">';
+    //$output .= '<div class="registration-item-volunteer-label">Volunteer:</div>';
+    $output .= '<div class ="registration-item-volunteer-value">';
+    $output .= $volunteer_name;//check_markup($node->assignee_uid);
+    $output .= '</div>';
+    $output .= '</div>';
+
+    return $output;
+
+
+}
+
+function theme_event_registration_assignee_name($assignee_name){
+
+    $output = '';
+
+    //$output .= '<div class="registration-item">';
+    //$output .= '<div class="registration-item-volunteer-label">Volunteer:</div>';
+    $output .= '<div class ="registration-item-volunteer-value">';
+    $output .= $assignee_name;//check_markup($node->assignee_uid);
+    $output .= '</div>';
+    //$output .= '</div>';
+
+    return $output;
+
+
+}
+
+function theme_event_registration_event_year($event, $year){
+
+    $output = '';
+
+    //$output .= '<div class="registration-item">';
+    //$output .= '<div class="registration-item-label">Registration event:  </div>';
+    //$output .= '<div class ="registration-item-event-value">';
+    $output .=  $event . ' ' . $year;//check_markup($node->registration_event . $node->registration_year);
+    //$output .= '</div>';
+    //$output .= '</div>';
+
+    return $output;
+    
+}
+
+/**
+ *
+ * @param <object> $station
+ * @return string
+ * 
+ */
+function theme_event_registration_station($station){
+
+    $output = '';
+
+    //foreach($node->station as $key => $stid){
+
+        //$station_obj = node_load($stid);
+        $output .= '<div class="form-item">';
+        //$output .= theme('event_station_name', $station[name]['value']);
+        $output .= theme('event_station_name', $station->name);
+        $output .= theme('event_station_count', $station->spots);
+        //$output .= theme('event_station_status', $station_obj->status);
+        $output .= theme('event_station_description', $station->description);
+
+        
+
+        $output .='</div>';
+    //}
+
+    return $output;
+
+}
+/**
+ *
+ * @param <string> $stations
+ * @return string
+ */
+function theme_event_registration_stations($stations = ''){
+
+    //$stations_string ='';
+
+    /*foreach($stations as $station){
+
+            $stations_string .= $station['name']['value'];
+            $stations_string .= $station['spots']['value'];
+            $stations_string .= $station['description']['value'];
+    }*/
+    
+    
+    $output = '';
+
+    $output .= '<div class="registration-item">';
+    $output .= '<div class="registration-item-label">Stations:  </div>';
+
+    $output .= '<div class ="stations">';
+
+    $output .= $stations;
+
+    $output .= '</div>';//stations
+    $output .= '</div>';//registration-item
+
+    return $output;
+}
+
+
+
+/**
+* Implementation of hook_validate().
+*/
+function event_registration_validate($node) {
+// ensure that registration does not already exist.  Look at title.
+// If registration already exists then transform into update.
+
+    //check here?
+    //If volunteer > spots then disable station. tjs 2011 March 13
+}
+
+
+
+
+/**
+* Implementation of hook_insert().
+*/
+function event_registration_insert($node){
+
+    $query = '';
+    $query .= "INSERT INTO {reg_registration_form} (nid, vid, registrant_uid, assignee_uid, registration_event, registration_year, created)";
+    $query .= "VALUES (%d, %d, %d, %d,'%s', %d, %d)";
+
+    db_query($query,
+            $node->nid, $node->vid, $node->registrant_uid, $node->assignee_uid, $node->registration_event, $node->registration_year, $node->created);
+
+    $query2 = '';
+    $query2 .= "INSERT INTO {reg_selected_stations} ";
+    $query2 .= "(vid, regid, delta, station_id, event, registration_year) ";
+    $query2 .= "VALUES (%d, %d, %d, %d, '%s', %d)";
+
+    foreach($node->event_stations as $delta => $stid){
+        //store all stations even those not selected.  This simplies updating tjs 2011Feb20
+        //if(($delta == $stid) && ($stid <> 0)){
+        if($stid <> 0){
+         db_query($query2,
+             $node->vid, $node->nid, $delta, $stid, $node->registration_event, $node->registration_year);
+        }
+    }
+}
+
+
+/**
+* Implementation of hook_update().
+*/
+function event_registration_update($node) {
+    if ($node->revision) {
+    // New revision; treat it as a new record.
+        event_registration_insert($node);
+    }
+    else {
+            db_query("UPDATE {reg_registration_form} SET registrant_uid = '%d',
+                                                         assignee_uid = '%d',
+                                                         registration_event = '%s',
+                                                         registration_year ='%d' WHERE vid = %d",
+                    $node->registrant_uid, $node->assignee_uid, $node->registration_event, $node->registration_year, $node->vid
+            );
+
+            foreach($node->event_stations as $delta => $stid){
+                //if(($delta == $stid) && ($stid <> 0)){
+                    db_query("UPDATE {reg_selected_stations} SET regid,
+                                                                 delta = '%d',
+                                                                 station = '%d',
+                                                                 event = '%s',
+                                                                 registration_year = '%d' WHERE vid = %d",
+                            $node->nid, $delta, $stid, $node->registration_event, $node->registration_year, $node->vid
+                    );
+                //}
+            }
+    }
+}
+
+
+/**
+* Implementation of hook_delete().
+*/
+
+function event_registration_delete($node){
+// Delete the related information we were saving for this node.
+
+    db_query('DELETE FROM {reg_registration_form} WHERE nid = %d', $node->nid);
+    db_query('DELETE FROM {reg_selected_stations} WHERE regid = %d', $node->nid); 
+}
+
+
+/**
+* Implementation of hook_load().
+*/
+function event_registration_load($node) {
+
+    drupal_add_js('misc/collapse.js');// Not sure if this is the optimum location for this function tjs 2001Feb06
+
+    $query = '';
+    $query .= 'SELECT rrf.nid, rrf.registrant_uid, rrf.assignee_uid,rrf.registration_event, rrf.registration_year,rrf.created, rss.delta, rss.station_id FROM {reg_registration_form} rrf ';
+    $query .= ' LEFT JOIN {reg_selected_stations} rss ON rrf.nid=rss.regid ';
+    $query .= ' WHERE rrf.vid = %d ';
+
+    $result = db_query($query,$node->vid);
+
+    $registration = array();
+
+    $row = db_fetch_object($result);
+
+    $registration['nid'] = $row->nid;
+    $registration['assignee_uid'] = $row->assignee_uid;
+    $registration['registrant_uid'] = $row->registrant_uid;
+    $registration['created'] = $row->created;
+    $registration['registration_event'] = $row->registration_event;
+    $registration['registration_year'] = $row->registration_year;
+    $registration['station'][$row->delta] = $row->station_id;
+
+    while($row = db_fetch_object( $result)){
+
+        $registration['station'][$row->delta] = $row->station_id;
+
+    }
+
+    foreach($registration['station'] as $key => $stid){
+
+            $station_obj = node_load($stid);
+
+            $registration['station'][$stid] = $station_obj;
+    }
+    
+    return $registration;
+    
+}
+
+
+/**
+* Implementation of hook_view().
+*/
+function event_registration_view($node, $teaser = FALSE, $page = FALSE) {
+// If $teaser is FALSE, the entire node is being displayed.
+
+
+    $volunteer = user_load($node->assignee_uid);
+
+    if(!empty($node->registrant_uid)){
+        $registrant = user_load($node->registrant_uid);
+    }
+     
+
+    if (!$teaser) {
+        // Use Drupal's default node view.
+        $node = node_prepare($node, $teaser);
+        // Add a random number of Ha's to simulate a laugh track.
+        //$node->guffaw = str_repeat(t('Ha!'), mt_rand(0, 10));
+        // Now add the punch line.
+
+        $node->content['registration']['id'] = array(
+            //'#value' => theme('event_registration_regid', $node->nid),
+            '#value' => $node->nid,
+            '#weight' => 2,
+        );//break out content here.  list each field.  list for stations as well. tjs 2011 Feb 27
+
+        $node->content['registration']['event'] = array(
+            //'#value' => theme('event_registration_event_year', $node->registration_event,$node->registration_year),
+          '#value' => $node->registration_event, // . ' ' . $node->registration_year,
+           '#weight' => 8,
+        );//$node->registration_event . '&nbsp;' . $node->registration_year;
+
+        $node->content['registration']['year'] = array(
+            '#type' => 'hidden',
+            '#value' => $node->registration_year,
+            '#weight' => 10,
+        );//$node->registration_event . '&nbsp;' . $node->registration_year;
+
+        $node->content['registration']['volunteer']['name'] = array(
+            //'#value' => theme('event_registration_volunteer_name', $volunteer->name),
+            '#value' => $volunteer->name,
+            '#weight' => 6,
+        );//$registrant->name
+
+        $node->content['registration']['registrant']['name'] = array(
+            //'#value' => theme('event_registration_registrant_name', $registrant->name),
+            '#value' => $registrant->name,
+            '#weight' => 4,
+        );//$registrant->name
+
+
+        $stations = '';
+
+        //$i = 12;
+        //$j = 0;
+
+        foreach($node->station as $stid => $station){
+
+            $station_obj = node_load($station);
+
+            if(is_object($station_obj)){
+
+
+            
+            
+
+            //$node->content['registration']['stations'][$j]['name'] = array(
+            //    '#value' => theme('event_station_name', $station_obj->name),
+                //'#weight' => $i,
+            //);
+
+            //$i = $i + 2;
+
+            //$node->content['registration']['stations'][$j]['spots'] = array(
+            //    '#value' => theme('event_station_count', $station_obj->spots),
+                //'#weight' => ($i + 2),
+            //);
+
+            //$i = $i + 2;
+
+
+             //$output .= theme('event_station_status', $station_obj->status);
+
+
+            //node->content['registration']['stations'][]['status'] = array(
+            //    '#value' => theme('event_station_status', $station_obj->status),
+            //    '#weight' => ($i + 2),
+            //);
+
+            //$i = $i + 2;
+
+
+            //$node->content['registration']['stations'][$j]['description'] = array(
+            //    '#value' => theme('event_station_description', $station_obj->description),
+                //'#weight' => ($i + 2),
+                // '#collapsible' => TRUE,
+                // '#collapsed' => FALSE,
+            //);
+
+            //$node->content['registration']['stations'][] = array(
+            //    '#value' => theme('event_registration_stations', $stations),
+            //    '#weight' => $i,
+            //); 
+            
+            $stations .= theme('event_registration_station', $station_obj);
+
+
+
+            //$i = $i + 2;
+
+
+
+            //$node->content['registration']['station_' . $j ] = array(
+            //    '#value' => theme('event_station_station', $node->content['registration']['stations'][$j]),
+                //'#weight' => ($i + 2),
+                 //'#collapsible' => TRUE,
+                 //'#collapsed' => FALSE,
+            //);
+
+            //$j++;
+            }
+          }
+
+       
+
+
+
+
+        $node->content['registration']['stations'] = array(
+            //'#value' => theme('event_registration_stations', $stations),
+            '#value' => $stations,
+            //'#value' => theme('event_registration_stations', $node->content['registration']['stations']),
+            '#weight' => 12,
+        );
+
+
+        // Not sure if I will use this wrapper. tjs 2011Feb27
+        //$node->content['registration'] = array(
+        //    '#value' => theme('event_registration_registration', $registration),
+        //);
+
+        
+
+
+
+
+
+    }
+    // If $teaser is TRUE, node is being displayed as a teaser,
+    // such as on a node listing page. We omit the punch line in this case.
+    if ($teaser) {
+    // Use Drupal's default node view.
+        $node = node_prepare($node, $teaser);
+    }
+
+    return $node;
+}
+
+
+
+function event_registration_set_title(&$node){
+
+     $node->title = $node->assignee . ' Registration';
+     
+}
+
+/**
+ *
+ * @param <stdClass> $user
+ * @return boolean
+ */
+function _is_admin($user){
+
+	$roles = array();
+        $roles = $user->roles;
+
+        $IS_ADMIN = FALSE;
+
+        foreach (element_children($roles) as $role_key) {
+            if (isset($roles[$role_key]) && $roles[$role_key]) {
+                if($roles[$role_key] == 'administrator') { // change this test for NOT
+                    $IS_ADMIN = TRUE;
+                }
+            }
+        }
+
+        if($user->uid == 1){
+            $IS_ADMIN = TRUE;
+        }
+
+        return $IS_ADMIN;
+}
+
+
+/**
+ * Process variables for event-registration.tpl.php.
+ *
+ * @see event-registration.tpl.php
+ * @see event_registration_theme()
+ *
+ */
+function template_preprocess_event_registration(&$variables){
+
+    dpm($variables);
+
+    $variables['whole_form'] = drupal_render($variables['form']);
+
+    
+}
+
+/*function template_preprocess_node_event_registration_edit(&$variables){
+
+    $variables['whole_form'] = drupal_render($variables['form']);
+
+
+}*/
+
+
+
+
+function _event_registration_readonly(&$elements) {
+  foreach (element_children($elements) as $key) {
+    if (isset($elements[$key]) && $elements[$key]) {
+
+      // Recurse through all children elements.
+      _event_registration_readonly($elements[$key]);
+    }
+  }
+
+  if (!isset($elements['#attributes'])) {
+    $elements['#attributes'] = array();
+  }
+  $elements['#attributes']['readonly'] = 'readonly';
+}
+
+
+
+function _event_registration_disabled(&$elements) {
+  foreach (element_children($elements) as $key) {
+    if (isset($elements[$key]) && $elements[$key]) {
+
+      // Recurse through all children elements.
+      _event_registration_disabled($elements[$key]);
+    }
+  }
+
+  if (!isset($elements['#attributes'])) {
+    $elements['#attributes'] = array();
+  }
+  $elements['#attributes']['disabled'] = 'disabled';
+}
+
+

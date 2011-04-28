@@ -1,0 +1,101 @@
+<?php
+
+function event_station_install() {
+// Use schema API to create database table.
+drupal_install_schema('event_station');
+}
+/**
+* Implementation of hook_uninstall().
+*/
+function event_station_uninstall() {
+// Use schema API to delete database table.
+drupal_uninstall_schema('event_station');
+// Delete our module's variable from the variables table.
+
+}
+
+
+/**
+* Implementation of hook_schema().
+*/
+function event_station_schema() {
+
+    $schema['event_station'] = array(
+        'description' => t("Stores a specific student activity overseen by a volunteer parent at a PTA event. "),
+        'fields' => array(
+            'nid' => array(
+            'type' => 'int',
+            'unsigned' => TRUE,
+            'not null' => TRUE,
+            'default' => 0,
+            'description' => t('The station\'s {node}.nid.'),
+            ),
+            'vid' => array(
+            'type' => 'int',
+            'unsigned' => TRUE,
+            'not null' => TRUE,
+            'default' => 0,
+            'description' => t('The station\'s {node_revisions}.vid.'),
+            ),
+            'name' => array(
+            'type' => 'text',
+            'not null' => TRUE,
+            'description' => t("The station's {node}.name."),
+            ),
+            'description' => array(
+            'type' => 'text',
+            'not null' => TRUE,
+            'description' => t('The station\'s {node}.description.'),
+            ),
+            //The number of slots available for volunteers
+                         // Since this is an array should the field be a foreign key to another table acting as the array.
+            'spots' => array(
+            'type' => 'int',
+            'unsigned' => TRUE,
+            'not null' => TRUE,
+            'default' => 0,
+            'description' => t('The station\'s volunteer {node}.spots.'),
+            ),
+             // Since this is an array should the field be a foreign key to another table acting as the array.  
+            'volunteers' => array(
+            'type' => 'text',
+            'not null' => TRUE,
+            'description' => t('The station\'s {node}.volunteer.'),
+            ),
+             // this is the registration event
+             /**'event' => array(
+             'type' => 'text',
+             'not null' => TRUE,
+             //'default' => get_event(),// Not available at this point
+             'default' => variable_get('registration_event', 'PTA Event'),
+             'description' => t('The station\'s {node}.event.'),
+            ),*/
+             'event' => array(
+             'description' => t('The station\'s {node}.event.'),
+             'type' => 'varchar',
+             'length' => 255,
+             'not null' => TRUE,
+             'default' => variable_get('registration_event', 'PTA Event'),
+            ),
+             'weight' => array(
+             'type' => 'int',
+             'unsigned' => TRUE,
+             'not null' => TRUE,
+             'default' => 0,  //make default dynamic?  Like auto-indexing?  Perhaps set new value by variable_set.
+             'description' => t('The station\'s {node}.weight.'),//The create new value by variable_get() + 1 2011Jan29
+            ),
+        ),//fields
+        'primary key' => array('nid', 'vid'),
+        'unique keys' => array(
+            'vid' => array('vid')
+        ),
+        'indexes' => array(
+            'nid' => array('nid')
+        ),
+    );//$schema['event_station']
+
+    return $schema;
+}
+
+
+function even_station_update_3001(){}
