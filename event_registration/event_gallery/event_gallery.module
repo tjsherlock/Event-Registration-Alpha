@@ -110,7 +110,7 @@ function add_term_for_gallery($gallery_name){
  */
 function event_gallery_views_api() {
   return array(
-    'api' => '3.0-alpha1',
+    'api' => 2.0',
   );
 }
 
