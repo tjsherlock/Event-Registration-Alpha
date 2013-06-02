@@ -9,7 +9,7 @@ function event_gallery_views_default_views() {
     $view->description = 'Slide show for the ' . get_gallery_name();
     $view->tag = 'slide show';
     $view->base_table = 'node';
-    $view->api_version = '3.0-alpha1';
+    $view->api_version = '2';
     $view->disabled = TRUE; //FALSE; /* Edit this to true to make a default view disabled initially */
 
     /* Display: Defaults */
