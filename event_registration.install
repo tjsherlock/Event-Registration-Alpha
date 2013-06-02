@@ -1,0 +1,330 @@
+<?php
+// $Id$
+/**
+* Implementation of hook_install().
+*/
+function event_registration_install() {
+// Use schema API to create database table.
+drupal_install_schema('event_registration');
+}
+/**
+* Implementation of hook_uninstall().
+*/
+function event_registration_uninstall() {
+// Use schema API to delete database table.
+drupal_uninstall_schema('event_registration');
+// Delete our module's variable from the variables table.
+//variable_delete('event_registration_node_types');
+}
+/**
+* Implementation of hook_schema().
+*/
+function event_registration_schema() {
+
+/**`field_station_event_value` int(11) DEFAULT NULL,
+  `field_station_weight_value` int(11) DEFAULT NULL,
+  `field_station_description_value` longtext,
+  `field_station_name_value` longtext,
+  `field_station_spots_value` int(11) DEFAULT NULL,
+  `field_station_event_2_value` longtext,
+  PRIMARY KEY (`vid`),
+  KEY `nid` (`nid`)*/
+
+
+
+
+
+/**
+$schema['reg_registration_event'] = array(
+    'description' => t('Stores current registration event.'),
+    'fields' => array(
+        'nid' => array(
+            'type' => 'int',
+            'unsigned' => TRUE,
+            'not null' => TRUE,
+            'default' => 0,
+            'description' => t('The {node}.nid to which the registration event applies.'),
+        ),
+        'vid' => array(
+            'type' => 'int',
+            'unsigned' => TRUE,
+            'not null' => TRUE,
+            'default' => 0,
+            'description' => t('The {user}.vid of the registration event.')
+        ),
+        'registration_event' => array(
+            'description' => t('The text of the registration event.'),
+            'type' => 'text',
+            'not null' => FALSE,
+            'size' => 'big',
+            'default' => NULL,
+        ),
+        'created' => array(
+            'description' => t('A Unix timestamp indicating when the registration event was created.'),
+            'type' => 'int',
+            'not null' => TRUE,
+            'default' => 0
+        ),
+    ),
+    'primary key' => array(
+        'vid'
+    ),
+    'key' => array(
+        'nid'
+    ),
+);
+ * *
+ */
+
+/**
+$schema['reg_station'] = array(
+    'description' => t('Stores station information.'),
+    'fields' => array(
+        'nid' => array(
+            'type' => 'int',
+            'unsigned' => TRUE,
+            'not null' => TRUE,
+            'default' => 0,
+            'description' => t('The {node}.nid to which the station applies.'),
+        ),
+        'vid' => array(
+            'type' => 'int',
+            'unsigned' => TRUE,
+            'not null' => TRUE,
+            'default' => 0,
+            'description' => t('The {user}.vid of the station.'),
+        ),
+        'event' => array(
+            'type' => 'text',
+            'not null' => FALSE,
+            'size' => 'big',
+            'default' => NULL,
+            'description' => t('The {node}.event to which the station applies.'),
+        ),
+        'description' => array(
+            'type' => 'text',
+            'not null' => FALSE,
+            'size' => 'big',
+            'default' => NULL,
+            'description' => t('The {node}.description to which the station applies.'),
+        ),
+        'name' => array(
+            'type' => 'text',
+            'not null' => FALSE,
+            'size' => 'big',
+            'default' => NULL,
+            'description' => t('The {node}.name to which the station applies.'),
+        ),
+        'spots' => array(
+            'type' => 'text',
+            'not null' => FALSE,
+            'size' => 'big',
+            'default' => NULL,
+            'description' => t('The {node}.spots to which the station applies.'),
+        ),
+        'weight' => array(
+            'type' => 'int',
+            'unsigned' => TRUE,
+            'not null' => TRUE,
+            'default' => 0,
+            'description' => t('The {user}.weight of the station.'),
+        ),
+    ),
+    'primary key' => array(
+        'vid'
+    ),
+    'key' => array(
+    'nid'
+    ),
+);
+*/
+
+$schema['reg_registration_form'] = array(
+
+    'description' => t('Stores current registration event.'),
+    'fields' => array(
+        'nid' => array(
+            'type' => 'int',
+            'unsigned' => TRUE,
+            'not null' => TRUE,
+            'default' => 0,
+            'description' => t('The {node}.nid to which the registration form applies.'),
+        ),
+        'vid' => array(
+            'type' => 'int',
+            'unsigned' => TRUE,
+            'not null' => TRUE,
+            'default' => 0,
+            'description' => t('The {user}.vid to which the registration form applies.'),
+        ),
+    	// added 'title' tjs 2012 June 17
+    	'title' => array(
+    		'type' =>'text',
+    		'not null' => FALSE,
+    		'size' => 'big',
+    		'default' => NULL,
+    		'description' => t('The title of the registration event.'),
+    	),
+    	//change to registrar or registrar_uid  tjs 2012June07
+        'registrant_uid' => array(
+            'type' => 'int',
+            'unsigned' => TRUE,
+            'not null' => FALSE,
+            'default' => NULL,
+            'description' => t('The {node}.registrant_uid to which the station applies.'),
+        ),
+    	//key 1 tjs 2012June07
+        'assignee_uid' => array(
+            'type' => 'int',
+            'unsigned' => TRUE,
+            'not null' => FALSE,
+            'default' => NULL,
+            'description' => t('The {node}.assignee_uid to which the station applies.'),
+        ),
+    	//key 2 tjs 2012June07
+        'registration_event' => array(
+            'type' => 'text',
+            'not null' => FALSE,
+            'size' => 'big',
+            'default' => NULL,
+            'description' => t('The event of the registration event.'),
+        ),
+    	//key 3 tjs 2012June07    		
+        'registration_year' => array(
+            'type' => 'int',
+            'length' => 4,
+            'unsigned' => TRUE,
+            'not null' => TRUE,
+            'default' => variable_get('registration_year', date('Y')),
+             //'type' => 'varchar',
+             //'length' => 4,
+             //'not null' => TRUE,
+             //'default' => variable_get('event_year', date('Y')),
+             'description' => t('The year of the registration.'),
+
+
+            //`registration_year` int(4) NOT NULL DEFAULT '0' COMMENT 'The year of the registration.',
+
+        ),
+        'created' => array(
+            'description' => t('A Unix timestamp indicating when the registration event was created.'),
+            'type' => 'int',
+            'not null' => TRUE,
+            'default' => 0
+        ),
+    ),//fields
+    'primary key' => array(
+        'vid'
+    ),
+    'key' => array(
+        'nid'
+    ),
+);//$schema['registration_form']
+
+
+$schema['reg_selected_stations'] = array(
+    'description' => t('Stations selected for a specific volunteer registration.'),
+    'fields' => array(
+        'vid' => array(
+            'type' => 'int',
+            'unsigned' => TRUE,
+            'not null' => TRUE,
+            'default' => 0,
+            'description' => t('The {user}.vid to which the registration form applies.'),
+        ),
+        'regid' => array(
+            'type' => 'int',
+            'unsigned' => TRUE,
+            'not null' => TRUE,
+            'default' => 0,
+            'description' => t('The {node}.nid to which the registration form applies.'),
+        ),
+        'delta' => array(
+            'type' => 'int',
+            'unsigned' => TRUE,
+            'not null' => TRUE,
+            'default' => 0,
+            'description' => t('The {node}.delta to which the registration form applies.'),
+        ),
+        'station_id' => array(
+            'type' => 'text',
+            'not null' => FALSE,
+            'size' => 'big',
+            'default' => NULL,
+            'description' => t('The id of the station selected for the associated registration.'),
+        ),
+    	//registration_event tjs 2012 June 07
+        'event' => array(
+             'description' => t('The event of the selected station.'),
+             'type' => 'varchar',
+             'length' => 255,
+             'not null' => TRUE,
+             'default' => variable_get('registration_event', 'PTA Event'),
+        ),
+        'registration_year' => array(
+            'type' => 'int',
+            'length' => 4,
+            'unsigned' => TRUE,
+            'not null' => TRUE,
+            'default' => variable_get('registration_year', date('Y')),
+            'description' => t('The year of the registration.'),
+        ),
+
+
+    ),//fields
+    'primary key' => array(
+        'vid',
+        'delta'
+    ),
+    'key' => array(
+        'nid'
+    ),
+);//$schema['selected_stations']
+
+
+
+/**
+ * CREATE TABLE `content_field_hb_stations` (
+  `vid` int(10) unsigned NOT NULL DEFAULT '0',
+  `nid` int(10) unsigned NOT NULL DEFAULT '0',
+  `delta` int(10) unsigned NOT NULL DEFAULT '0',
+  `field_hb_stations_value` longtext,
+  PRIMARY KEY (`vid`,`delta`),
+  KEY `nid` (`nid`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+ */
+
+
+
+
+/**
+ *
+ * CREATE TABLE `content_type_station_reg` (
+  `vid` int(10) unsigned NOT NULL DEFAULT '0',
+  `nid` int(10) unsigned NOT NULL DEFAULT '0',
+  `field_hb_regsitrant_2_uid` int(10) unsigned DEFAULT NULL,
+  `field_hb_assignee_uid` int(10) unsigned DEFAULT NULL,
+  `field_hb_stations_display_value` longtext,
+  `field_hb_event_value` longtext,
+  PRIMARY KEY (`vid`),
+  KEY `nid` (`nid`),
+  KEY `field_hb_regsitrant_2_uid` (`field_hb_regsitrant_2_uid`),
+  KEY `field_hb_assignee_uid` (`field_hb_assignee_uid`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+ *
+ *
+ *
+ *
+ *
+ */
+
+return $schema;
+
+
+}
+
+function event_registration_update_3001(){}
+
+
+
+

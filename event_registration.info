@@ -1,0 +1,10 @@
+; $Id$
+name = "Event Registration"
+description = "Custom module to allow registrant to register a volunteer (self) or an assignee (any PTA member other than the chair)."
+core = 6.x
+version = 6.x-1.0
+
+package = "Community Conscious Media"
+
+;stylesheets[all][]   = theme/event_registration.css
+
